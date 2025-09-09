@@ -15,9 +15,12 @@ class x_cls_make_mermaid_x:
     representation is intentionally minimal so it can be extended later.
     """
 
-    def __init__(self, direction: str = "LR") -> None:
+    def __init__(
+        self, direction: str = "LR", ctx: object | None = None
+    ) -> None:
         # direction: LR (left-right), TB (top-bottom), etc.
         self.direction = direction
+        self._ctx = ctx
         self._lines: list[str] = [f"flowchart {self.direction}"]
 
     def add_node(self, node_id: str, label: str | None = None) -> None:
@@ -39,6 +42,8 @@ class x_cls_make_mermaid_x:
         src = self.source()
         with open(path, "w", encoding="utf-8") as f:
             f.write(src)
+        if getattr(self._ctx, "verbose", False):
+            print(f"[mermaid] saved mermaid source to {path}")
         return path
 
 
