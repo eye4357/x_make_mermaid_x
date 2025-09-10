@@ -7,6 +7,26 @@ Markdown or rendering with mermaid CLI/tools.
 
 from __future__ import annotations
 
+import logging
+import sys as _sys
+
+_LOGGER = logging.getLogger("x_make")
+
+
+def _info(*args: object) -> None:
+    msg = " ".join(str(a) for a in args)
+    try:
+        _LOGGER.info("%s", msg)
+    except Exception:
+        pass
+    try:
+        print(msg)
+    except Exception:
+        try:
+            _sys.stdout.write(msg + "\n")
+        except Exception:
+            pass
+
 
 class x_cls_make_mermaid_x:
     """Simple Mermaid builder stub.
@@ -43,7 +63,25 @@ class x_cls_make_mermaid_x:
         with open(path, "w", encoding="utf-8") as f:
             f.write(src)
         if getattr(self._ctx, "verbose", False):
-            from x_make_common_x.helpers import info as _info
+            # inlined helper to avoid importing shared module
+            import logging as _logging
+            _LOGGER = _logging.getLogger("x_make")
+
+            def _info(*args: object) -> None:
+                msg = " ".join(str(a) for a in args)
+                try:
+                    _LOGGER.info("%s", msg)
+                except Exception:
+                    pass
+                try:
+                    print(msg)
+                except Exception:
+                    try:
+                        import sys as _sys
+
+                        _sys.stdout.write(msg + "\n")
+                    except Exception:
+                        pass
 
             _info(f"[mermaid] saved mermaid source to {path}")
         return path
@@ -58,6 +96,4 @@ def main() -> str:
 
 
 if __name__ == "__main__":
-    from x_make_common_x.helpers import info as _info
-
     _info(main())
