@@ -65,6 +65,7 @@ class x_cls_make_mermaid_x:
         if getattr(self._ctx, "verbose", False):
             # inlined helper to avoid importing shared module
             import logging as _logging
+
             _LOGGER = _logging.getLogger("x_make")
 
             def _info(*args: object) -> None:
