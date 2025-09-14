@@ -192,8 +192,8 @@ class x_cls_make_mermaid_x:
             "asym": (">", "]"),
         }
         if shape and shape in shape_map:
-            l, r = shape_map[shape]
-            self._doc.lines.append(f'{node_id}{l}{_esc(label)}{r}')
+            left_delim, right_delim = shape_map[shape]
+            self._doc.lines.append(f'{node_id}{left_delim}{_esc(label)}{right_delim}')
         else:
             self._doc.lines.append(f'{node_id}["{_esc(label)}"]')
         return self
