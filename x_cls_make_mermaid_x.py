@@ -304,7 +304,7 @@ class x_cls_make_mermaid_x:
 
     # State API
 
-    def state_node(self, name: string | str, alias: str | None = None) -> "x_cls_make_mermaid_x":
+    def state_node(self, name: str, alias: str | None = None) -> "x_cls_make_mermaid_x":
         if self._doc.kind == _STATE:
             if alias:
                 self._doc.lines.append(f'state "{_esc(name)}" as {alias}')
