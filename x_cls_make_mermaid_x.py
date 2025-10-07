@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import logging
 import os
-import sys as _sys
-from dataclasses import dataclass, field
-from typing import Any, Iterable
 import shutil
 import subprocess as _subprocess
+import sys as _sys
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from typing import Any
 
 _LOGGER = logging.getLogger("x_make")
 
@@ -87,7 +88,7 @@ class x_cls_make_mermaid_x:
 
     def set_directive(
         self, directive_json: str | dict[str, Any]
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """Add a directive block like %%{init: { 'theme':'dark' }}%%."""
         if isinstance(directive_json, dict):
             # minimal serializer without imports
@@ -99,70 +100,70 @@ class x_cls_make_mermaid_x:
             self._doc.directives.append(str(directive_json))
         return self
 
-    def add_comment(self, text: str) -> "x_cls_make_mermaid_x":
+    def add_comment(self, text: str) -> x_cls_make_mermaid_x:
         self._doc.comments.append(f"%% {_esc(text)} %%")
         return self
 
     # Kind switches
 
-    def flowchart(self, direction: str = "LR") -> "x_cls_make_mermaid_x":
+    def flowchart(self, direction: str = "LR") -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_FLOW, header=f"{_FLOW} {direction}")
         return self
 
-    def sequence(self, title: str | None = None) -> "x_cls_make_mermaid_x":
+    def sequence(self, title: str | None = None) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_SEQ, header=_SEQ)
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
         return self
 
-    def class_diagram(self) -> "x_cls_make_mermaid_x":
+    def class_diagram(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_CLASS, header=_CLASS)
         return self
 
-    def state(self) -> "x_cls_make_mermaid_x":
+    def state(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_STATE, header=_STATE)
         return self
 
-    def er(self) -> "x_cls_make_mermaid_x":
+    def er(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_ER, header=_ER)
         return self
 
     def gantt(
         self, title: str | None = None, date_format: str = "YYYY-MM-DD"
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_GANTT, header=_GANTT)
         self._doc.lines.append(f"dateFormat {date_format}")
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
         return self
 
-    def journey(self, title: str | None = None) -> "x_cls_make_mermaid_x":
+    def journey(self, title: str | None = None) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_JOURNEY, header=_JOURNEY)
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
         return self
 
-    def pie(self, title: str | None = None) -> "x_cls_make_mermaid_x":
+    def pie(self, title: str | None = None) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_PIE, header=_PIE)
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
         return self
 
-    def timeline(self, title: str | None = None) -> "x_cls_make_mermaid_x":
+    def timeline(self, title: str | None = None) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_TIMELINE, header=_TIMELINE)
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
         return self
 
-    def gitgraph(self) -> "x_cls_make_mermaid_x":
+    def gitgraph(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_GIT, header=_GIT)
         return self
 
-    def mindmap(self) -> "x_cls_make_mermaid_x":
+    def mindmap(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_MINDMAP, header=_MINDMAP)
         return self
 
-    def requirement(self) -> "x_cls_make_mermaid_x":
+    def requirement(self) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_REQ, header=_REQ)
         return self
 
@@ -173,7 +174,7 @@ class x_cls_make_mermaid_x:
         x_right: str = "High",
         y_bottom: str = "Low",
         y_top: str = "High",
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         self._doc = MermaidDoc(kind=_QUAD, header=_QUAD)
         if title:
             self._doc.lines.append(f"title {_esc(title)}")
@@ -185,7 +186,7 @@ class x_cls_make_mermaid_x:
 
     def node(
         self, node_id: str, label: str | None = None, shape: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """Add a node; shape can be: [], (), (()) , {} , [[]], >, etc."""
         if self._doc.kind != _FLOW:
             return self
@@ -217,7 +218,7 @@ class x_cls_make_mermaid_x:
         label: str | None = None,
         arrow: str = "-->",
         style: str | None = None,
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind != _FLOW:
             return self
         mid = f"|{_esc(label)}|" if label else ""
@@ -227,7 +228,7 @@ class x_cls_make_mermaid_x:
 
     def subgraph(
         self, title: str, body: Iterable[str] | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind != _FLOW:
             return self
         self._doc.lines.append(f"subgraph {_esc(title)}")
@@ -237,19 +238,19 @@ class x_cls_make_mermaid_x:
         self._doc.lines.append("end")
         return self
 
-    def style_node(self, node_id: str, css: str) -> "x_cls_make_mermaid_x":
+    def style_node(self, node_id: str, css: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _FLOW:
             self._doc.lines.append(f"style {node_id} {_esc(css)}")
         return self
 
-    def link_style(self, idx: int, css: str) -> "x_cls_make_mermaid_x":
+    def link_style(self, idx: int, css: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _FLOW:
             self._doc.lines.append(f"linkStyle {idx} {_esc(css)}")
         return self
 
     def click(
         self, node_id: str, url: str, tooltip: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _FLOW:
             if tooltip:
                 self._doc.lines.append(
@@ -263,7 +264,7 @@ class x_cls_make_mermaid_x:
 
     def participant(
         self, pid: str, label: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             if label:
                 self._doc.lines.append(f'participant {pid} as "{_esc(label)}"')
@@ -273,14 +274,14 @@ class x_cls_make_mermaid_x:
 
     def message(
         self, src: str, dst: str, text: str, kind: str = "->>"
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             self._doc.lines.append(f"{src} {kind} {dst}: {_esc(text)}")
         return self
 
     def note_over(
         self, who: str | tuple[str, str], text: str
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             if isinstance(who, tuple):
                 self._doc.lines.append(
@@ -290,19 +291,19 @@ class x_cls_make_mermaid_x:
                 self._doc.lines.append(f"Note over {who}: {_esc(text)}")
         return self
 
-    def activate(self, pid: str) -> "x_cls_make_mermaid_x":
+    def activate(self, pid: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             self._doc.lines.append(f"activate {pid}")
         return self
 
-    def deactivate(self, pid: str) -> "x_cls_make_mermaid_x":
+    def deactivate(self, pid: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             self._doc.lines.append(f"deactivate {pid}")
         return self
 
     def block(
         self, kind: str, title: str, body: Iterable[str]
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """Generic sequence block: kind in ('loop','alt','opt','par','rect')."""
         if self._doc.kind == _SEQ:
             self._doc.lines.append(f"{kind} {_esc(title)}")
@@ -318,7 +319,7 @@ class x_cls_make_mermaid_x:
         name: str,
         fields: list[str] | None = None,
         methods: list[str] | None = None,
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _CLASS:
             self._doc.lines.append(f"class {name} {{")
             for f in fields or []:
@@ -330,7 +331,7 @@ class x_cls_make_mermaid_x:
 
     def class_rel(
         self, a: str, op: str, b: str, label: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """op: '<|--', '*--', 'o--', '--', '<..', etc."""
         if self._doc.kind == _CLASS:
             lab = f" : {_esc(label)}" if label else ""
@@ -341,7 +342,7 @@ class x_cls_make_mermaid_x:
 
     def state_node(
         self, name: str, alias: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _STATE:
             if alias:
                 self._doc.lines.append(f'state "{_esc(name)}" as {alias}')
@@ -351,21 +352,21 @@ class x_cls_make_mermaid_x:
 
     def state_trans(
         self, src: str, dst: str, event: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _STATE:
             ev = f" : {_esc(event)}" if event else ""
             self._doc.lines.append(f"{src} --> {dst}{ev}")
         return self
 
-    def state_start(self, to: str) -> "x_cls_make_mermaid_x":
+    def state_start(self, to: str) -> x_cls_make_mermaid_x:
         return self.state_trans("[*]", to)
 
-    def state_end(self, frm: str) -> "x_cls_make_mermaid_x":
+    def state_end(self, frm: str) -> x_cls_make_mermaid_x:
         return self.state_trans(frm, "[*]")
 
     def state_subgraph(
         self, name: str, body: Iterable[str]
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _STATE:
             self._doc.lines.append(f"state {_esc(name)} {{")
             for ln in body:
@@ -375,7 +376,7 @@ class x_cls_make_mermaid_x:
 
     # ER API
 
-    def er_entity(self, name: str, *fields: str) -> "x_cls_make_mermaid_x":
+    def er_entity(self, name: str, *fields: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _ER:
             if fields:
                 self._doc.lines.append(
@@ -387,7 +388,7 @@ class x_cls_make_mermaid_x:
 
     def er_rel(
         self, left: str, card: str, right: str, label: str = ""
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """card like '||--o{' etc."""
         if self._doc.kind == _ER:
             lab = f" : {_esc(label)}" if label else ""
@@ -396,7 +397,7 @@ class x_cls_make_mermaid_x:
 
     # Gantt API
 
-    def gantt_section(self, title: str) -> "x_cls_make_mermaid_x":
+    def gantt_section(self, title: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _GANTT:
             self._doc.lines.append(f"section {_esc(title)}")
         return self
@@ -408,7 +409,7 @@ class x_cls_make_mermaid_x:
         start_or_rel: str | None = None,
         duration: str | None = None,
         depends_on: str | None = None,
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """Examples:
         Task :t1, 2025-01-01, 3d
         Task :t2, after t1, 5d
@@ -430,28 +431,28 @@ class x_cls_make_mermaid_x:
 
     # Journey
 
-    def journey_section(self, title: str) -> "x_cls_make_mermaid_x":
+    def journey_section(self, title: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _JOURNEY:
             self._doc.lines.append(f"section {_esc(title)}")
         return self
 
     def journey_step(
         self, actor: str, score: int, text: str
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _JOURNEY:
             self._doc.lines.append(f"{_esc(actor)}: {score}: {_esc(text)}")
         return self
 
     # Pie
 
-    def pie_slice(self, label: str, value: float) -> "x_cls_make_mermaid_x":
+    def pie_slice(self, label: str, value: float) -> x_cls_make_mermaid_x:
         if self._doc.kind == _PIE:
             self._doc.lines.append(f'"{_esc(label)}" : {value}')
         return self
 
     # Timeline
 
-    def timeline_entry(self, when: str, *items: str) -> "x_cls_make_mermaid_x":
+    def timeline_entry(self, when: str, *items: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _TIMELINE:
             self._doc.lines.append(
                 f'{_esc(when)} : {", ".join(_esc(i) for i in items)}'
@@ -460,31 +461,31 @@ class x_cls_make_mermaid_x:
 
     # GitGraph
 
-    def git_commit(self, msg: str | None = None) -> "x_cls_make_mermaid_x":
+    def git_commit(self, msg: str | None = None) -> x_cls_make_mermaid_x:
         if self._doc.kind == _GIT:
             self._doc.lines.append(
                 f'commit {"tag: \""+_esc(msg)+"\"" if msg else ""}'.rstrip()
             )
         return self
 
-    def git_branch(self, name: str) -> "x_cls_make_mermaid_x":
+    def git_branch(self, name: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _GIT:
             self._doc.lines.append(f"branch {name}")
         return self
 
-    def git_checkout(self, name: str) -> "x_cls_make_mermaid_x":
+    def git_checkout(self, name: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _GIT:
             self._doc.lines.append(f"checkout {name}")
         return self
 
-    def git_merge(self, name: str) -> "x_cls_make_mermaid_x":
+    def git_merge(self, name: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _GIT:
             self._doc.lines.append(f"merge {name}")
         return self
 
     # Mindmap
 
-    def mindmap_node(self, path: list[str]) -> "x_cls_make_mermaid_x":
+    def mindmap_node(self, path: list[str]) -> x_cls_make_mermaid_x:
         """Add a node by path; indent with 2 spaces per level."""
         if self._doc.kind == _MINDMAP and path:
             for i, part in enumerate(path):
@@ -496,7 +497,7 @@ class x_cls_make_mermaid_x:
 
     def req(
         self, kind: str, ident: str, attrs: dict[str, str]
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         """kind in ('requirement','functionalRequirement','test','risk',...)."""
         if self._doc.kind == _REQ:
             self._doc.lines.append(f"{kind} {ident} {{")
@@ -507,7 +508,7 @@ class x_cls_make_mermaid_x:
 
     def req_link(
         self, a: str, op: str, b: str, label: str | None = None
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _REQ:
             lab = f" : {_esc(label)}" if label else ""
             self._doc.lines.append(f"{a} {op} {b}{lab}")
@@ -515,21 +516,21 @@ class x_cls_make_mermaid_x:
 
     # Quadrant chart
 
-    def quadrant(self, idx: int, name: str) -> "x_cls_make_mermaid_x":
+    def quadrant(self, idx: int, name: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _QUAD:
             self._doc.lines.append(f'quadrant-{idx} "{_esc(name)}"')
         return self
 
     def quad_point(
         self, label: str, x: float, y: float
-    ) -> "x_cls_make_mermaid_x":
+    ) -> x_cls_make_mermaid_x:
         if self._doc.kind == _QUAD:
             self._doc.lines.append(f'point "{_esc(label)}" : {x}, {y}')
         return self
 
     # Beta charts (stubs: let callers write lines)
 
-    def raw(self, line: str) -> "x_cls_make_mermaid_x":
+    def raw(self, line: str) -> x_cls_make_mermaid_x:
         """Append a raw Mermaid line (escape yourself if needed)."""
         self._doc.lines.append(line)
         return self
