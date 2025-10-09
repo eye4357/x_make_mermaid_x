@@ -11,9 +11,8 @@ import os
 import shutil
 import subprocess as _subprocess
 import sys as _sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 _LOGGER = logging.getLogger("x_make")
 
@@ -52,6 +51,12 @@ _XY = "xychart-beta"
 _BLOCK = "block-beta"
 
 FlowDir = tuple[str, ...]
+AttrValue = str | int | float | bool | None
+DirectivePayload = Mapping[str, object]
+
+
+def _new_str_list() -> list[str]:
+    return []
 
 
 def _esc(s: str) -> str:
@@ -62,11 +67,11 @@ def _esc(s: str) -> str:
 class MermaidDoc:
     kind: str
     header: str
-    lines: list[str] = field(default_factory=list)
+    lines: list[str] = field(default_factory=_new_str_list)
     directives: list[str] = field(
-        default_factory=list
+        default_factory=_new_str_list
     )  # e.g., %%{init: {...}}%%
-    comments: list[str] = field(default_factory=list)
+    comments: list[str] = field(default_factory=_new_str_list)
 
 
 class x_cls_make_mermaid_x:
@@ -78,16 +83,14 @@ class x_cls_make_mermaid_x:
       src = m.source()
     """
 
-    def __init__(
-        self, direction: str = "LR", ctx: object | None = None
-    ) -> None:
+    def __init__(self, direction: str = "LR", ctx: object | None = None) -> None:
         self._ctx = ctx
         self._doc = MermaidDoc(kind=_FLOW, header=f"{_FLOW} {direction}")
 
     # Core controls
 
     def set_directive(
-        self, directive_json: str | dict[str, Any]
+        self, directive_json: str | DirectivePayload
     ) -> x_cls_make_mermaid_x:
         """Add a directive block like %%{init: { 'theme':'dark' }}%%."""
         if isinstance(directive_json, dict):
@@ -204,9 +207,7 @@ class x_cls_make_mermaid_x:
         }
         if shape and shape in shape_map:
             left_delim, right_delim = shape_map[shape]
-            self._doc.lines.append(
-                f"{node_id}{left_delim}{_esc(label)}{right_delim}"
-            )
+            self._doc.lines.append(f"{node_id}{left_delim}{_esc(label)}{right_delim}")
         else:
             self._doc.lines.append(f'{node_id}["{_esc(label)}"]')
         return self
@@ -262,9 +263,7 @@ class x_cls_make_mermaid_x:
 
     # Sequence API
 
-    def participant(
-        self, pid: str, label: str | None = None
-    ) -> x_cls_make_mermaid_x:
+    def participant(self, pid: str, label: str | None = None) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             if label:
                 self._doc.lines.append(f'participant {pid} as "{_esc(label)}"')
@@ -279,14 +278,10 @@ class x_cls_make_mermaid_x:
             self._doc.lines.append(f"{src} {kind} {dst}: {_esc(text)}")
         return self
 
-    def note_over(
-        self, who: str | tuple[str, str], text: str
-    ) -> x_cls_make_mermaid_x:
+    def note_over(self, who: str | tuple[str, str], text: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _SEQ:
             if isinstance(who, tuple):
-                self._doc.lines.append(
-                    f"Note over {who[0]},{who[1]}: {_esc(text)}"
-                )
+                self._doc.lines.append(f"Note over {who[0]},{who[1]}: {_esc(text)}")
             else:
                 self._doc.lines.append(f"Note over {who}: {_esc(text)}")
         return self
@@ -301,9 +296,7 @@ class x_cls_make_mermaid_x:
             self._doc.lines.append(f"deactivate {pid}")
         return self
 
-    def block(
-        self, kind: str, title: str, body: Iterable[str]
-    ) -> x_cls_make_mermaid_x:
+    def block(self, kind: str, title: str, body: Iterable[str]) -> x_cls_make_mermaid_x:
         """Generic sequence block: kind in ('loop','alt','opt','par','rect')."""
         if self._doc.kind == _SEQ:
             self._doc.lines.append(f"{kind} {_esc(title)}")
@@ -340,9 +333,7 @@ class x_cls_make_mermaid_x:
 
     # State API
 
-    def state_node(
-        self, name: str, alias: str | None = None
-    ) -> x_cls_make_mermaid_x:
+    def state_node(self, name: str, alias: str | None = None) -> x_cls_make_mermaid_x:
         if self._doc.kind == _STATE:
             if alias:
                 self._doc.lines.append(f'state "{_esc(name)}" as {alias}')
@@ -364,9 +355,7 @@ class x_cls_make_mermaid_x:
     def state_end(self, frm: str) -> x_cls_make_mermaid_x:
         return self.state_trans(frm, "[*]")
 
-    def state_subgraph(
-        self, name: str, body: Iterable[str]
-    ) -> x_cls_make_mermaid_x:
+    def state_subgraph(self, name: str, body: Iterable[str]) -> x_cls_make_mermaid_x:
         if self._doc.kind == _STATE:
             self._doc.lines.append(f"state {_esc(name)} {{")
             for ln in body:
@@ -416,7 +405,7 @@ class x_cls_make_mermaid_x:
         Task :t3, 2025-01-02, 1d
         """
         if self._doc.kind == _GANTT:
-            parts = []
+            parts: list[str] = []
             if task_id:
                 parts.append(task_id)
             if start_or_rel:
@@ -436,9 +425,7 @@ class x_cls_make_mermaid_x:
             self._doc.lines.append(f"section {_esc(title)}")
         return self
 
-    def journey_step(
-        self, actor: str, score: int, text: str
-    ) -> x_cls_make_mermaid_x:
+    def journey_step(self, actor: str, score: int, text: str) -> x_cls_make_mermaid_x:
         if self._doc.kind == _JOURNEY:
             self._doc.lines.append(f"{_esc(actor)}: {score}: {_esc(text)}")
         return self
@@ -495,9 +482,7 @@ class x_cls_make_mermaid_x:
 
     # Requirement
 
-    def req(
-        self, kind: str, ident: str, attrs: dict[str, str]
-    ) -> x_cls_make_mermaid_x:
+    def req(self, kind: str, ident: str, attrs: dict[str, str]) -> x_cls_make_mermaid_x:
         """kind in ('requirement','functionalRequirement','test','risk',...)."""
         if self._doc.kind == _REQ:
             self._doc.lines.append(f"{kind} {ident} {{")
@@ -521,9 +506,7 @@ class x_cls_make_mermaid_x:
             self._doc.lines.append(f'quadrant-{idx} "{_esc(name)}"')
         return self
 
-    def quad_point(
-        self, label: str, x: float, y: float
-    ) -> x_cls_make_mermaid_x:
+    def quad_point(self, label: str, x: float, y: float) -> x_cls_make_mermaid_x:
         if self._doc.kind == _QUAD:
             self._doc.lines.append(f'point "{_esc(label)}" : {x}, {y}')
         return self
@@ -573,9 +556,7 @@ class x_cls_make_mermaid_x:
             self.save(mmd_path)
         # Decide svg output
         svg_path = svg_path or (
-            mmd_path[:-4] + "svg"
-            if mmd_path.endswith(".mmd")
-            else mmd_path + ".svg"
+            mmd_path[:-4] + "svg" if mmd_path.endswith(".mmd") else mmd_path + ".svg"
         )
         # Resolve CLI
         cmd = mmdc_cmd or os.environ.get("MMDC", "mmdc")
@@ -590,9 +571,7 @@ class x_cls_make_mermaid_x:
         if extra_args:
             args.extend(extra_args)
         try:
-            res = _subprocess.run(
-                args, check=False, capture_output=True, text=True
-            )
+            res = _subprocess.run(args, check=False, capture_output=True, text=True)
             if res.stdout:
                 _info(res.stdout.strip())
             if res.returncode == 0:
