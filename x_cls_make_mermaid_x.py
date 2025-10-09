@@ -12,6 +12,7 @@ import shutil
 import subprocess as _subprocess
 import sys as _sys
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 
 _LOGGER = logging.getLogger("x_make")
@@ -19,17 +20,15 @@ _LOGGER = logging.getLogger("x_make")
 
 def _info(*args: object) -> None:
     msg = " ".join(str(a) for a in args)
-    try:
+    with suppress(Exception):
         _LOGGER.info("%s", msg)
-    except Exception:
-        pass
-    try:
+    printed = False
+    with suppress(Exception):
         print(msg)
-    except Exception:
-        try:
+        printed = True
+    if not printed:
+        with suppress(Exception):
             _sys.stdout.write(msg + "\n")
-        except Exception:
-            pass
 
 
 # Diagram kinds supported (primary headers)
@@ -549,10 +548,10 @@ class x_cls_make_mermaid_x:
         """
         # Ensure .mmd exists
         mmd_path = mmd_path or "diagram.mmd"
-        try:
-            if not os.path.exists(mmd_path):
-                self.save(mmd_path)
-        except Exception:
+        needs_write = True
+        with suppress(Exception):
+            needs_write = not os.path.exists(mmd_path)
+        if needs_write:
             self.save(mmd_path)
         # Decide svg output
         svg_path = svg_path or (
@@ -570,7 +569,7 @@ class x_cls_make_mermaid_x:
         args = [exe, "-i", mmd_path, "-o", svg_path, "-b", "transparent"]
         if extra_args:
             args.extend(extra_args)
-        try:
+        with suppress(Exception):
             res = _subprocess.run(args, check=False, capture_output=True, text=True)
             if res.stdout:
                 _info(res.stdout.strip())
@@ -578,8 +577,6 @@ class x_cls_make_mermaid_x:
                 return svg_path
             if res.stderr:
                 _info(res.stderr.strip())
-        except Exception:
-            pass
         return None
 
 
