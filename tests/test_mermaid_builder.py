@@ -1,18 +1,18 @@
 """Tests for the Mermaid diagram builder utilities."""
 
+# ruff: noqa: S101 - tests rely on assert statements for clarity
+
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from typing import TYPE_CHECKING, cast
-
-import pytest
 
 from x_make_mermaid_x import x_cls_make_mermaid_x as mermaid_module
 from x_make_mermaid_x.x_cls_make_mermaid_x import CommandError, MermaidBuilder
 
 if TYPE_CHECKING:
-    from _pytest._code.code import ExceptionInfo
+    from pathlib import Path
+
     from _pytest.monkeypatch import MonkeyPatch
 
 
@@ -27,14 +27,14 @@ def test_flowchart_source_includes_nodes_and_edges() -> None:
 
     mermaid = builder.source()
 
-    if not mermaid.startswith("flowchart TD"):
-        raise AssertionError("Mermaid source should start with flowchart header")
-    if 'A["Start"]' not in mermaid:
-        raise AssertionError("Start node should be present")
-    if "B(End)" not in mermaid:
-        raise AssertionError("End node should use round shape")
-    if "A -->|go| B stroke-width:2px" not in mermaid:
-        raise AssertionError("Edge with label and style should be emitted")
+    assert mermaid.startswith(
+        "flowchart TD"
+    ), "Mermaid source should start with flowchart header"
+    assert 'A["Start"]' in mermaid, "Start node should be present"
+    assert "B(End)" in mermaid, "End node should use round shape"
+    assert (
+        "A -->|go| B stroke-width:2px" in mermaid
+    ), "Edge with label and style should be emitted"
 
 
 def test_to_svg_returns_none_when_cli_missing(
@@ -45,7 +45,7 @@ def test_to_svg_returns_none_when_cli_missing(
     mmd_path = tmp_path / "diagram.mmd"
 
     def missing_cli(
-        cmd: str, mode: int | None = None, path: str | None = None
+        _cmd: str, _mode: int | None = None, _path: str | None = None
     ) -> None:
         return None
 
@@ -56,14 +56,14 @@ def test_to_svg_returns_none_when_cli_missing(
 
     result = builder.to_svg(mmd_path=str(mmd_path))
 
-    if result is not None:
-        raise AssertionError("When CLI is missing, to_svg should return None")
-    if not mmd_path.exists():
-        raise AssertionError("DOT fallback should be written")
-    if "flowchart" not in mmd_path.read_text(encoding="utf-8"):
-        raise AssertionError("Fallback file should contain Mermaid source")
-    if (tmp_path / "diagram.svg").exists():
-        raise AssertionError("SVG file should not be created without CLI")
+    assert result is None, "When CLI is missing, to_svg should return None"
+    assert mmd_path.exists(), "DOT fallback should be written"
+    assert "flowchart" in mmd_path.read_text(
+        encoding="utf-8"
+    ), "Fallback file should contain Mermaid source"
+    assert not (
+        tmp_path / "diagram.svg"
+    ).exists(), "SVG file should not be created without CLI"
 
 
 def test_to_svg_invokes_cli_when_available(
@@ -77,7 +77,7 @@ def test_to_svg_invokes_cli_when_available(
     fake_cli.touch()
 
     def locate_cli(
-        cmd: str, mode: int | None = None, path: str | None = None
+        _cmd: str, _mode: int | None = None, _path: str | None = None
     ) -> str:
         return str(fake_cli)
 
@@ -89,7 +89,11 @@ def test_to_svg_invokes_cli_when_available(
     captured: dict[str, object] = {}
 
     def fake_run(
-        args: list[str], capture_output: bool, text: bool, check: bool
+        args: list[str],
+        *,
+        capture_output: bool = False,
+        text: bool = False,
+        check: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         captured["args"] = tuple(args)
         captured["kwargs"] = {
@@ -108,25 +112,30 @@ def test_to_svg_invokes_cli_when_available(
 
     result = builder.to_svg(mmd_path=str(mmd_path), svg_path=str(svg_path))
 
-    if result != str(svg_path):
-        raise AssertionError("CLI path should be returned when invocation succeeds")
-    args = captured.get("args")
-    if not isinstance(args, tuple) or not args or args[0] != str(fake_cli):
-        raise AssertionError("Mermaid CLI path should be first argument")
+    assert result == str(
+        svg_path
+    ), "CLI path should be returned when invocation succeeds"
+    args_obj = captured.get("args")
+    assert isinstance(args_obj, tuple), "Captured args should be a tuple"
+    args = cast("tuple[str, ...]", args_obj)
+    assert args, "Captured args should not be empty"
+    assert args[0] == str(fake_cli), "Mermaid CLI path should be first argument"
     kwargs_obj = captured.get("kwargs")
-    if not isinstance(kwargs_obj, dict):
-        raise AssertionError("Captured kwargs should be a dict")
+    assert isinstance(kwargs_obj, dict), "Captured kwargs should be a dict"
     kwargs = cast("dict[str, object]", kwargs_obj)
-    if kwargs.get("capture_output") is not True:
-        raise AssertionError("CLI should capture stdout/stderr")
-    if svg_path.exists():
-        raise AssertionError("SVG should not be created during dry run")
+    assert kwargs.get("capture_output") is True, "CLI should capture stdout/stderr"
+    assert not svg_path.exists(), "SVG should not be created during dry run"
 
 
 def test_run_command_returns_completed_process(monkeypatch: MonkeyPatch) -> None:
     def fake_run(
-        args: list[str], capture_output: bool, text: bool, check: bool
+        args: list[str],
+        *,
+        capture_output: bool = False,
+        text: bool = False,
+        check: bool = False,
     ) -> subprocess.CompletedProcess[str]:
+        _ = (capture_output, text, check)
         return subprocess.CompletedProcess(
             args=args, returncode=0, stdout="ok", stderr=""
         )
@@ -138,14 +147,18 @@ def test_run_command_returns_completed_process(monkeypatch: MonkeyPatch) -> None
 
     result = mermaid_module.run_command(["mmdc", "--version"])
 
-    if result.stdout != "ok":
-        raise AssertionError("stdout should be passed through")
+    assert result.stdout == "ok", "stdout should be passed through"
 
 
 def test_run_command_raises_command_error(monkeypatch: MonkeyPatch) -> None:
     def fake_run(
-        args: list[str], capture_output: bool, text: bool, check: bool
+        args: list[str],
+        *,
+        capture_output: bool = False,
+        text: bool = False,
+        check: bool = False,
     ) -> subprocess.CompletedProcess[str]:
+        _ = (capture_output, text, check)
         return subprocess.CompletedProcess(
             args=args, returncode=2, stdout="", stderr="boom"
         )
@@ -155,14 +168,19 @@ def test_run_command_raises_command_error(monkeypatch: MonkeyPatch) -> None:
         fake_run,
     )
 
-    with pytest.raises(CommandError) as excinfo:
+    err: CommandError | None = None
+    try:
         mermaid_module.run_command(["mmdc", "render"], check=True)
+    except CommandError as caught:
+        err = caught
+    else:  # pragma: no cover - defensive safeguard
+        message = "CommandError should have been raised"
+        raise AssertionError(message)
 
-    info = cast("ExceptionInfo[CommandError]", excinfo)
-    err = info.value
-    if err.returncode != 2:
-        raise AssertionError("CommandError should expose return code")
-    if err.stderr != "boom":
-        raise AssertionError("CommandError should expose stderr output")
-    if tuple(err.argv) != ("mmdc", "render"):
-        raise AssertionError("CommandError should expose argv")
+    assert err is not None
+    expected_return_code = 2
+    assert (
+        err.returncode == expected_return_code
+    ), "CommandError should expose return code"
+    assert err.stderr == "boom", "CommandError should expose stderr output"
+    assert tuple(err.argv) == ("mmdc", "render"), "CommandError should expose argv"
