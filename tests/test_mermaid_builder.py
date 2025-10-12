@@ -127,7 +127,9 @@ def test_to_svg_invokes_cli_when_available(
     assert not svg_path.exists(), "SVG should not be created during dry run"
 
 
-def test_run_command_returns_completed_process(monkeypatch: MonkeyPatch) -> None:
+def test_run_command_returns_completed_process(
+    monkeypatch: MonkeyPatch,
+) -> None:
     def fake_run(
         args: list[str],
         *,
@@ -183,4 +185,7 @@ def test_run_command_raises_command_error(monkeypatch: MonkeyPatch) -> None:
         err.returncode == expected_return_code
     ), "CommandError should expose return code"
     assert err.stderr == "boom", "CommandError should expose stderr output"
-    assert tuple(err.argv) == ("mmdc", "render"), "CommandError should expose argv"
+    assert tuple(err.argv) == (
+        "mmdc",
+        "render",
+    ), "CommandError should expose argv"
