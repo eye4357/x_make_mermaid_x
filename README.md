@@ -1,9 +1,9 @@
-# x_make_mermaid_x — Lab Notes from Walter White
+# x_make_mermaid_x — Control Room Lab Notes
 
 > "When I storyboard an operation, I want sequence, gantt, and flow—this builder gives me all of it without touching a GUI."
 
 ## Manifesto
-x_make_mermaid_x is my programmable Mermaid factory. Flowcharts, sequence diagrams, timelines—you name it. It outputs `.mmd` sources and can drive mermaid-cli for SVG renders so the Road to 0.20.0 reports stay visual and precise.
+x_make_mermaid_x is my programmable Mermaid factory. Flowcharts, sequence diagrams, timelines—you name it. It outputs `.mmd` sources and can drive mermaid-cli for SVG renders so the Road to 0.20.1 reports stay visual and precise.
 
 ## Ingredients
 - Python 3.11+
@@ -28,8 +28,8 @@ x_make_mermaid_x is my programmable Mermaid factory. Flowcharts, sequence diagra
 
 ## Distribution Chain
 - [Changelog](./CHANGELOG.md)
-- [Road to 0.20.0 Control Room](../x_0_make_all_x/Change%20Control/0.20.0/index.md)
-- [Road to 0.20.0 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.0/Road%20to%200.20.0%20Engineering%20Proposal%20-%20Walter%20White.md)
+- [Road to 0.20.1 Control Room Ledger](../x_0_make_all_x/Change%20Control/0.20.1/Road%20to%200.20.1%20Engineering%20Proposal.md)
+- [Road to 0.20.1 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.1/Road%20to%200.20.1%20Engineering%20Proposal.md)
 
 ## Cross-Linked Intelligence
 - [x_make_markdown_x](../x_make_markdown_x/README.md) — ingests Mermaid diagrams directly into documentation
