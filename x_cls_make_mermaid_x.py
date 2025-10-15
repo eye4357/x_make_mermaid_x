@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import shutil
 import subprocess
 import sys as _sys
 from collections.abc import Iterable, Mapping
@@ -18,6 +16,12 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
+
+from x_make_common_x.exporters import (
+    CommandRunner,
+    ExportResult,
+    export_mermaid_to_svg,
+)
 
 
 class CommandError(RuntimeError):
@@ -129,9 +133,19 @@ class MermaidBuilder:
       src = m.source()
     """
 
-    def __init__(self, direction: str = "LR", ctx: object | None = None) -> None:
+    def __init__(
+        self,
+        direction: str = "LR",
+        ctx: object | None = None,
+        *,
+        runner: CommandRunner | None = None,
+        mermaid_cli: str | None = None,
+    ) -> None:
         self._ctx = ctx
         self._doc = MermaidDoc(kind=_FLOW, header=f"{_FLOW} {direction}")
+        self._runner: CommandRunner | None = runner
+        self._mermaid_cli: str | None = mermaid_cli
+        self._last_export_result: ExportResult | None = None
 
     def _is_verbose(self) -> bool:
         value: object = getattr(self._ctx, "verbose", False)
@@ -579,50 +593,42 @@ class MermaidBuilder:
 
         Returns SVG path on success, or None if CLI not found or conversion failed.
         """
-        # Ensure .mmd exists
-        mmd_path_obj = Path(mmd_path or "diagram.mmd")
-        needs_write = True
-        with suppress(Exception):
-            needs_write = not mmd_path_obj.exists()
-        if needs_write:
-            self.save(str(mmd_path_obj))
-        # Decide svg output
-        svg_path_obj = Path(svg_path) if svg_path else mmd_path_obj.with_suffix(".svg")
-        # Resolve CLI
-        cmd = mmdc_cmd or os.environ.get("MMDC", "mmdc")
-        exe = shutil.which(cmd)
-        if not exe:
-            if self._is_verbose():
-                missing_msg = (
-                    f"[mermaid] mermaid-cli '{cmd}' not found in PATH; "
-                    f"left .mmd at {mmd_path_obj}"
-                )
-                _info(missing_msg)
-            return None
-        args = [
-            exe,
-            "-i",
-            str(mmd_path_obj),
-            "-o",
-            str(svg_path_obj),
-            "-b",
-            "transparent",
-        ]
-        if extra_args:
-            args.extend(extra_args)
-        try:
-            res = run_command(args, check=False)
-        except OSError as exc:
-            if self._is_verbose():
-                _info(f"[mermaid] failed to invoke mermaid-cli: {exc}")
-            return None
-        if res.stdout:
-            _info(res.stdout.strip())
-        if res.returncode == 0:
-            return str(svg_path_obj)
-        if res.stderr:
-            _info(res.stderr.strip())
+        source_text = self.source()
+        # Determine output naming
+        if svg_path:
+            svg_candidate = Path(svg_path)
+            output_dir = svg_candidate.parent or Path()
+            stem = svg_candidate.stem
+        elif mmd_path:
+            mmd_candidate = Path(mmd_path)
+            output_dir = mmd_candidate.parent or Path()
+            stem = mmd_candidate.stem
+        else:
+            output_dir = Path()
+            stem = "diagram"
+
+        cli_path = mmdc_cmd or self._mermaid_cli
+        result = export_mermaid_to_svg(
+            source_text,
+            output_dir=output_dir,
+            stem=stem,
+            mermaid_cli_path=cli_path,
+            runner=self._runner,
+            extra_args=extra_args,
+        )
+        self._last_export_result = result
+
+        if result.succeeded and result.output_path is not None:
+            return str(result.output_path)
+        if self._is_verbose():
+            _info(
+                "[mermaid] mmdc export failed; retained Mermaid at",
+                str((output_dir / f"{stem}.mmd").resolve()),
+            )
         return None
+
+    def get_last_export_result(self) -> ExportResult | None:
+        return self._last_export_result
 
 
 def main() -> str:

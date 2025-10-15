@@ -5,14 +5,15 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING, cast
+from collections.abc import Sequence
+from pathlib import Path
+from subprocess import CompletedProcess
+from typing import TYPE_CHECKING
 
 from x_make_mermaid_x import x_cls_make_mermaid_x as mermaid_module
 from x_make_mermaid_x.x_cls_make_mermaid_x import CommandError, MermaidBuilder
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from _pytest.monkeypatch import MonkeyPatch
 
 
@@ -37,22 +38,9 @@ def test_flowchart_source_includes_nodes_and_edges() -> None:
     ), "Edge with label and style should be emitted"
 
 
-def test_to_svg_returns_none_when_cli_missing(
-    tmp_path: Path,
-    monkeypatch: MonkeyPatch,
-) -> None:
+def test_to_svg_returns_none_when_cli_missing(tmp_path: Path) -> None:
     builder = MermaidBuilder().flowchart("LR").node("A", "Start")
     mmd_path = tmp_path / "diagram.mmd"
-
-    def missing_cli(
-        _cmd: str, _mode: int | None = None, _path: str | None = None
-    ) -> None:
-        return None
-
-    monkeypatch.setattr(
-        "x_make_mermaid_x.x_cls_make_mermaid_x.shutil.which",
-        missing_cli,
-    )
 
     result = builder.to_svg(mmd_path=str(mmd_path))
 
@@ -66,65 +54,38 @@ def test_to_svg_returns_none_when_cli_missing(
     ).exists(), "SVG file should not be created without CLI"
 
 
-def test_to_svg_invokes_cli_when_available(
-    tmp_path: Path,
-    monkeypatch: MonkeyPatch,
-) -> None:
-    builder = MermaidBuilder().flowchart("LR").node("A", "Start")
+def test_to_svg_invokes_cli_when_available(tmp_path: Path) -> None:
+    captured: dict[str, Sequence[str]] = {}
+
+    def runner(command: Sequence[str]) -> CompletedProcess[str]:
+        captured["command"] = command
+        try:
+            out_index = command.index("-o") + 1
+        except ValueError:  # pragma: no cover - defensive guard
+            raise AssertionError("-o flag missing from command")
+        svg_target = Path(command[out_index])
+        svg_target.write_text("<svg />", encoding="utf-8")
+        return CompletedProcess(list(command), 0, stdout="done", stderr="")
+
+    fake_cli = tmp_path / "mmdc.exe"
+    fake_cli.write_text("binary", encoding="utf-8")
+
+    builder = MermaidBuilder(
+        runner=runner,
+        mermaid_cli=str(fake_cli),
+    ).flowchart("LR").node("A", "Start")
     mmd_path = tmp_path / "diagram.mmd"
     svg_path = tmp_path / "diagram.svg"
-    fake_cli = tmp_path / "mmdc.exe"
-    fake_cli.touch()
-
-    def locate_cli(
-        _cmd: str, _mode: int | None = None, _path: str | None = None
-    ) -> str:
-        return str(fake_cli)
-
-    monkeypatch.setattr(
-        "x_make_mermaid_x.x_cls_make_mermaid_x.shutil.which",
-        locate_cli,
-    )
-
-    captured: dict[str, object] = {}
-
-    def fake_run(
-        args: list[str],
-        *,
-        capture_output: bool = False,
-        text: bool = False,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        captured["args"] = tuple(args)
-        captured["kwargs"] = {
-            "capture_output": capture_output,
-            "text": text,
-            "check": check,
-        }
-        return subprocess.CompletedProcess(
-            args=args, returncode=0, stdout="done", stderr=""
-        )
-
-    monkeypatch.setattr(
-        "x_make_mermaid_x.x_cls_make_mermaid_x.subprocess.run",
-        fake_run,
-    )
 
     result = builder.to_svg(mmd_path=str(mmd_path), svg_path=str(svg_path))
 
-    assert result == str(
-        svg_path
-    ), "CLI path should be returned when invocation succeeds"
-    args_obj = captured.get("args")
-    assert isinstance(args_obj, tuple), "Captured args should be a tuple"
-    args = cast("tuple[str, ...]", args_obj)
-    assert args, "Captured args should not be empty"
-    assert args[0] == str(fake_cli), "Mermaid CLI path should be first argument"
-    kwargs_obj = captured.get("kwargs")
-    assert isinstance(kwargs_obj, dict), "Captured kwargs should be a dict"
-    kwargs = cast("dict[str, object]", kwargs_obj)
-    assert kwargs.get("capture_output") is True, "CLI should capture stdout/stderr"
-    assert not svg_path.exists(), "SVG should not be created during dry run"
+    assert result == str(svg_path), "SVG path should be returned on success"
+    assert svg_path.exists(), "SVG file should be written by exporter"
+    command = captured.get("command")
+    assert command is not None
+    assert command[0] == str(fake_cli)
+    last_result = builder.get_last_export_result()
+    assert last_result and last_result.succeeded is True
 
 
 def test_run_command_returns_completed_process(
