@@ -3,10 +3,10 @@
 > "When I storyboard an operation, I want sequence, gantt, and flow—this builder gives me all of it without touching a GUI."
 
 ## Manifesto
-x_make_mermaid_x is my programmable Mermaid factory. Flowcharts, sequence diagrams, timelines—you name it. It outputs `.mmd` sources and can drive mermaid-cli for SVG renders so the Road to 0.20.2 reports stay visual and precise.
+x_make_mermaid_x is my programmable Mermaid factory. Flowcharts, sequence diagrams, timelines—you name it. It outputs `.mmd` sources and can drive mermaid-cli for SVG renders so the Road to 0.20.3 reports stay visual and precise.
 
-## 0.20.2 Command Sequence
-Version 0.20.2 synchronizes every storyboard with the latest Road to 0.20.2 checkpoints. The control room now reads the same diagrams I sketch before a deployment, keeping timing, flow, and risk exactly where I want them.
+## 0.20.3 Command Sequence
+Version 0.20.3 syncs every storyboard with the JSON-first roadmap. Diagram exports now note the refreshed visitor telemetry and the new board ledger so operations and documentation stay fused.
 
 ## Ingredients
 - Python 3.11+
@@ -31,8 +31,8 @@ Version 0.20.2 synchronizes every storyboard with the latest Road to 0.20.2 chec
 
 ## Distribution Chain
 - [Changelog](./CHANGELOG.md)
-- [Road to 0.20.2 Control Room Ledger](../x_0_make_all_x/Change%20Control/0.20.2/Road%20to%200.20.2%20Engineering%20Proposal.md)
-- [Road to 0.20.2 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.2/Road%20to%200.20.2%20Engineering%20Proposal.md)
+- [Road to 0.20.3 Control Room Ledger](../x_0_make_all_x/Change%20Control/0.20.3/Road%20to%200.20.3%20Engineering%20Proposal.md)
+- [Road to 0.20.3 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.3/Road%20to%200.20.3%20Engineering%20Proposal.md)
 
 ## Cross-Linked Intelligence
 - [x_make_markdown_x](../x_make_markdown_x/README.md) — ingests Mermaid diagrams directly into documentation
