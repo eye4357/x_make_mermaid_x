@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Sequence
 from pathlib import Path
 from subprocess import CompletedProcess
 from typing import TYPE_CHECKING
@@ -14,6 +13,8 @@ from x_make_mermaid_x import x_cls_make_mermaid_x as mermaid_module
 from x_make_mermaid_x.x_cls_make_mermaid_x import CommandError, MermaidBuilder
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from _pytest.monkeypatch import MonkeyPatch
 
 
@@ -61,8 +62,9 @@ def test_to_svg_invokes_cli_when_available(tmp_path: Path) -> None:
         captured["command"] = command
         try:
             out_index = command.index("-o") + 1
-        except ValueError:  # pragma: no cover - defensive guard
-            raise AssertionError("-o flag missing from command")
+        except ValueError as error:  # pragma: no cover - defensive guard
+            message = "-o flag missing from command"
+            raise AssertionError(message) from error
         svg_target = Path(command[out_index])
         svg_target.write_text("<svg />", encoding="utf-8")
         return CompletedProcess(list(command), 0, stdout="done", stderr="")
@@ -70,10 +72,14 @@ def test_to_svg_invokes_cli_when_available(tmp_path: Path) -> None:
     fake_cli = tmp_path / "mmdc.exe"
     fake_cli.write_text("binary", encoding="utf-8")
 
-    builder = MermaidBuilder(
-        runner=runner,
-        mermaid_cli=str(fake_cli),
-    ).flowchart("LR").node("A", "Start")
+    builder = (
+        MermaidBuilder(
+            runner=runner,
+            mermaid_cli=str(fake_cli),
+        )
+        .flowchart("LR")
+        .node("A", "Start")
+    )
     mmd_path = tmp_path / "diagram.mmd"
     svg_path = tmp_path / "diagram.svg"
 
@@ -85,7 +91,8 @@ def test_to_svg_invokes_cli_when_available(tmp_path: Path) -> None:
     assert command is not None
     assert command[0] == str(fake_cli)
     last_result = builder.get_last_export_result()
-    assert last_result and last_result.succeeded is True
+    assert last_result is not None
+    assert last_result.succeeded is True
 
 
 def test_run_command_returns_completed_process(

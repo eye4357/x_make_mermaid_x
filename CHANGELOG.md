@@ -2,6 +2,11 @@
 
 All notable changes to x_make_mermaid_x are cataloged here. We hold to [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) standards and Semantic Versioning so every diagram evolution is traceable.
 
+## [0.20.4] - 2025-10-15
+### Changed
+- Routed Mermaid renders through the shared `export_mermaid_to_svg` helper, emitting `ExportResult` telemetry and clear failure reasons when `mmdc` is offline.
+- README tightened for the Road to 0.20.4 release to document the exporter hookup and Kanban evidence capture.
+
 ## [0.20.3] - 2025-10-14
 ### Changed
 - Adjusted documentation and roadmap links for the Road to 0.20.3 release, highlighting the JSON-first storyboard updates.
