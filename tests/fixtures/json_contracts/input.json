@@ -1,0 +1,37 @@
+{
+  "command": "x_make_mermaid_x",
+  "parameters": {
+    "output_mermaid": "C:\\x_runner_x\\artifacts\\diagram.mmd",
+    "output_svg": "C:\\x_runner_x\\artifacts\\diagram.svg",
+    "mermaid_cli_path": "C:\\Program Files\\MermaidCLI\\mmdc.cmd",
+    "export_svg": true,
+    "document": {
+      "diagram": "flowchart",
+      "direction": "LR",
+      "title": "Deployment Flow",
+      "nodes": [
+        {
+          "id": "start",
+          "label": "Start",
+          "shape": "circle"
+        },
+        {
+          "id": "deploy",
+          "label": "Deploy",
+          "shape": "rect"
+        }
+      ],
+      "edges": [
+        {
+          "source": "start",
+          "target": "deploy",
+          "label": "triggers"
+        }
+      ],
+      "metadata": {
+        "version": "0.20.5"
+      }
+    },
+    "source": "flowchart LR; start((Start)) --> deploy[Deploy];"
+  }
+}

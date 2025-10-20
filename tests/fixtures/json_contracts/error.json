@@ -1,0 +1,8 @@
+{
+  "status": "failure",
+  "message": "Mermaid CLI invocation failed",
+  "details": {
+    "command": "mmdc -i diagram.mmd -o diagram.svg",
+    "exit_code": 1
+  }
+}

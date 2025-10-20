@@ -1,0 +1,35 @@
+{
+  "status": "success",
+  "schema_version": "x_make_mermaid_x.run/1.0",
+  "generated_at": "2025-10-18T00:05:00Z",
+  "mermaid": {
+    "source_path": "C:\\x_runner_x\\artifacts\\diagram.mmd",
+    "source_bytes": 512,
+    "svg": {
+      "exporter": "mermaid-cli",
+      "succeeded": true,
+      "output_path": "C:\\x_runner_x\\artifacts\\diagram.svg",
+      "command": [
+        "mmdc",
+        "-i",
+        "C:\\x_runner_x\\artifacts\\diagram.mmd",
+        "-o",
+        "C:\\x_runner_x\\artifacts\\diagram.svg"
+      ],
+      "stdout": "",
+      "stderr": "",
+      "inputs": {
+        "diagram": "flowchart"
+      },
+      "binary_path": "C:\\Program Files\\MermaidCLI\\mmdc.cmd",
+      "detail": null
+    }
+  },
+  "messages": [
+    "Mermaid CLI executed successfully"
+  ],
+  "summary": {
+    "nodes": 2,
+    "edges": 1
+  }
+}
