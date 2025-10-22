@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys as _sys
+from typing import TYPE_CHECKING
+
 _JSON_VALUE_SCHEMA: dict[str, object] = {
     "type": ["object", "array", "string", "number", "boolean", "null"],
 }
@@ -268,5 +271,9 @@ ERROR_SCHEMA: dict[str, object] = {
     "required": ["status", "message"],
     "additionalProperties": True,
 }
+
+# Preserve legacy import path "json_contracts" for downstream tooling.
+if not TYPE_CHECKING:
+    _sys.modules.setdefault("json_contracts", _sys.modules[__name__])
 
 __all__ = ["ERROR_SCHEMA", "INPUT_SCHEMA", "OUTPUT_SCHEMA"]

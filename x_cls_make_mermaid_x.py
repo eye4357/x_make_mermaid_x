@@ -11,15 +11,16 @@ import json
 import logging
 import subprocess
 import sys as _sys
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from collections.abc import Iterable as _Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Self, cast
+from types import MappingProxyType
+from typing import IO, Self, cast
 
-from jsonschema import ValidationError  # type: ignore[import-untyped]
+from jsonschema import ValidationError
 from x_make_common_x.exporters import (
     CommandRunner,
     ExportResult,
@@ -74,6 +75,10 @@ def run_command(
 
 _LOGGER = logging.getLogger("x_make")
 
+ValidationErrorType = cast("type[Exception]", ValidationError)
+
+_EMPTY_MAPPING: Mapping[str, object] = MappingProxyType(cast("dict[str, object]", {}))
+
 
 def _info(*args: object) -> None:
     msg = " ".join(str(a) for a in args)
@@ -92,12 +97,7 @@ SCHEMA_VERSION = "x_make_mermaid_x.run/1.0"
 
 
 def _timestamp() -> str:
-    return (
-        datetime.now(UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _ensure_trailing_newline(text: str) -> str:
@@ -115,10 +115,8 @@ def _failure_payload(
     }
     if details:
         payload["details"] = dict(details)
-    try:
+    with suppress(ValidationErrorType):
         validate_payload(payload, ERROR_SCHEMA)
-    except ValidationError:
-        pass
     return payload
 
 
@@ -144,6 +142,8 @@ FlowDir = tuple[str, ...]
 AttrValue = str | int | float | bool | None
 DirectivePayload = Mapping[str, object]
 
+_NOTE_PAIR_LENGTH = 2
+
 
 def _new_str_list() -> list[str]:
     return []
@@ -164,14 +164,200 @@ class MermaidDoc:
     comments: list[str] = field(default_factory=_new_str_list)
 
 
+def _handle_flowchart(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del date_format, diagram
+    builder.flowchart(direction)
+    if title:
+        builder.raw(f"title {_esc(title)}")
+
+
+def _handle_sequence(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.sequence(title)
+
+
+def _handle_state(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.state()
+    if title:
+        builder.raw(f"title {_esc(title)}")
+
+
+def _handle_class_diagram(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram, title
+    builder.class_diagram()
+
+
+def _handle_er_diagram(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram, title
+    builder.er()
+
+
+def _handle_journey(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.journey(title)
+
+
+def _handle_pie(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.pie(title)
+
+
+def _handle_timeline(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.timeline(title)
+
+
+def _handle_gitgraph(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram, title
+    builder.gitgraph()
+
+
+def _handle_mindmap(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram, title
+    builder.mindmap()
+
+
+def _handle_requirement(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram, title
+    builder.requirement()
+
+
+def _handle_gantt(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, diagram
+    builder.gantt(title, date_format=date_format)
+
+
+def _handle_quadrants(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, diagram
+    builder.quadrants(title)
+
+
+def _handle_beta(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format, title
+    builder.custom(diagram, header=diagram)
+
+
+def _handle_custom_fallback(
+    builder: MermaidBuilder,
+    *,
+    direction: str,
+    title: str | None,
+    date_format: str,
+    diagram: str,
+) -> None:
+    del direction, date_format
+    builder.custom(diagram, header=diagram)
+    if title:
+        builder.raw(f"title {_esc(title)}")
+
+
 def _set_diagram(builder: MermaidBuilder, document: Mapping[str, object]) -> str:
     diagram_obj = document.get("diagram")
-    diagram = str(diagram_obj) if isinstance(diagram_obj, str) and diagram_obj else _FLOW
+    diagram = (
+        str(diagram_obj) if isinstance(diagram_obj, str) and diagram_obj else _FLOW
+    )
     direction_obj = document.get("direction")
     direction = (
-        str(direction_obj)
-        if isinstance(direction_obj, str) and direction_obj
-        else "LR"
+        str(direction_obj) if isinstance(direction_obj, str) and direction_obj else "LR"
     )
     title_obj = document.get("title")
     title = str(title_obj) if isinstance(title_obj, str) and title_obj else None
@@ -182,46 +368,33 @@ def _set_diagram(builder: MermaidBuilder, document: Mapping[str, object]) -> str
         else "YYYY-MM-DD"
     )
 
-    if diagram == _FLOW:
-        builder.flowchart(direction)
-        if title:
-            builder.raw(f"title {_esc(title)}")
-    elif diagram == _SEQ:
-        builder.sequence(title)
-    elif diagram == _CLASS:
-        builder.class_diagram()
-    elif diagram == _STATE:
-        builder.state()
-        if title:
-            builder.raw(f"title {_esc(title)}")
-    elif diagram == _ER:
-        builder.er()
-    elif diagram == _GANTT:
-        builder.gantt(title, date_format=date_format)
-    elif diagram == _JOURNEY:
-        builder.journey(title)
-    elif diagram == _PIE:
-        builder.pie(title)
-    elif diagram == _TIMELINE:
-        builder.timeline(title)
-    elif diagram == _GIT:
-        builder.gitgraph()
-    elif diagram == _MINDMAP:
-        builder.mindmap()
-    elif diagram == _REQ:
-        builder.requirement()
-    elif diagram == _QUAD:
-        builder.quadrants(title)
-    elif diagram == _SANKEY:
-        builder._doc = MermaidDoc(kind=_SANKEY, header=_SANKEY)
-    elif diagram == _XY:
-        builder._doc = MermaidDoc(kind=_XY, header=_XY)
-    elif diagram == _BLOCK:
-        builder._doc = MermaidDoc(kind=_BLOCK, header=_BLOCK)
-    else:
-        builder._doc = MermaidDoc(kind=diagram, header=diagram)
-        if title:
-            builder.raw(f"title {_esc(title)}")
+    handler_map = {
+        _FLOW: _handle_flowchart,
+        _SEQ: _handle_sequence,
+        _CLASS: _handle_class_diagram,
+        _STATE: _handle_state,
+        _ER: _handle_er_diagram,
+        _GANTT: _handle_gantt,
+        _JOURNEY: _handle_journey,
+        _PIE: _handle_pie,
+        _TIMELINE: _handle_timeline,
+        _GIT: _handle_gitgraph,
+        _MINDMAP: _handle_mindmap,
+        _REQ: _handle_requirement,
+        _QUAD: _handle_quadrants,
+        _SANKEY: _handle_beta,
+        _XY: _handle_beta,
+        _BLOCK: _handle_beta,
+    }
+
+    handler = handler_map.get(diagram, _handle_custom_fallback)
+    handler(
+        builder,
+        direction=direction,
+        title=title,
+        date_format=date_format,
+        diagram=diagram,
+    )
     return diagram
 
 
@@ -234,7 +407,8 @@ def _apply_directives(builder: MermaidBuilder, directives: object) -> None:
         text_obj = entry.get("text")
         payload_obj = entry.get("payload")
         if isinstance(payload_obj, Mapping):
-            builder.set_directive(cast("Mapping[str, object]", payload_obj))
+            typed_payload = cast("Mapping[str, object]", payload_obj)
+            builder.set_directive(dict(typed_payload))
         elif isinstance(text_obj, str) and text_obj:
             builder.set_directive(text_obj)
 
@@ -300,125 +474,242 @@ def _apply_lines(builder: MermaidBuilder, lines: object) -> None:
             builder.raw(line)
 
 
-def _apply_instruction(builder: MermaidBuilder, instr_type: str, payload: object) -> None:
-    if instr_type in {"line", "raw"} and isinstance(payload, str):
-        builder.raw(payload)
-        return
+def _instruction_participant(builder: MermaidBuilder, payload: object) -> None:
     if not isinstance(payload, Mapping):
         return
-    if instr_type == "participant":
-        pid = payload.get("id")
-        label = payload.get("label")
-        if isinstance(pid, str):
-            builder.participant(pid, label if isinstance(label, str) else None)
-    elif instr_type == "message":
-        src = payload.get("source")
-        dst = payload.get("target")
-        text = payload.get("text")
-        kind = payload.get("kind")
-        if isinstance(src, str) and isinstance(dst, str) and isinstance(text, str):
-            arrow = kind if isinstance(kind, str) and kind else "->>"
-            builder.message(src, dst, text, kind=arrow)
-    elif instr_type == "note":
-        who = payload.get("who")
-        text = payload.get("text")
-        if isinstance(text, str):
-            if isinstance(who, (list, tuple)) and len(who) == 2:
-                first, second = who
-                if isinstance(first, str) and isinstance(second, str):
-                    builder.note_over((first, second), text)
-                    return
-            if isinstance(who, str):
-                builder.note_over(who, text)
-    elif instr_type == "activate":
+    pid = payload.get("id")
+    label = payload.get("label")
+    if isinstance(pid, str):
+        builder.participant(pid, label if isinstance(label, str) else None)
+
+
+def _instruction_message(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    src = payload.get("source")
+    dst = payload.get("target")
+    text = payload.get("text")
+    kind = payload.get("kind")
+    if isinstance(src, str) and isinstance(dst, str) and isinstance(text, str):
+        arrow = kind if isinstance(kind, str) and kind else "->>"
+        builder.message(src, dst, text, kind=arrow)
+
+
+def _instruction_note(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    who = payload.get("who")
+    text = payload.get("text")
+    if not isinstance(text, str):
+        return
+    if isinstance(who, (list, tuple)) and len(who) == _NOTE_PAIR_LENGTH:
+        first, second = who
+        if isinstance(first, str) and isinstance(second, str):
+            builder.note_over((first, second), text)
+            return
+    if isinstance(who, str):
+        builder.note_over(who, text)
+
+
+def _instruction_activate(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         pid = payload.get("id")
         if isinstance(pid, str):
             builder.activate(pid)
-    elif instr_type == "deactivate":
+
+
+def _instruction_deactivate(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         pid = payload.get("id")
         if isinstance(pid, str):
             builder.deactivate(pid)
-    elif instr_type == "block":
-        kind = payload.get("kind")
-        title = payload.get("title")
-        body = payload.get("body")
-        if isinstance(kind, str) and isinstance(title, str) and isinstance(body, Sequence):
-            lines = [str(entry) for entry in body]
-            builder.block(kind, title, lines)
-    elif instr_type == "gantt_section":
+
+
+def _instruction_block(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    kind = payload.get("kind")
+    title = payload.get("title")
+    body = payload.get("body")
+    if isinstance(kind, str) and isinstance(title, str) and isinstance(body, Sequence):
+        lines = [str(entry) for entry in body]
+        builder.block(kind, title, lines)
+
+
+def _instruction_gantt_section(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         name = payload.get("name")
         if isinstance(name, str):
             builder.raw(f"section {_esc(name)}")
-    elif instr_type == "gantt_task":
-        name = payload.get("name")
-        span = payload.get("span")
-        if isinstance(name, str) and isinstance(span, str):
-            builder.raw(f"{name}: {span}")
-    elif instr_type == "journey_section":
+
+
+def _instruction_gantt_task(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    name = payload.get("name")
+    span = payload.get("span")
+    if isinstance(name, str) and isinstance(span, str):
+        builder.raw(f"{name}: {span}")
+
+
+def _instruction_journey_section(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         name = payload.get("name")
         if isinstance(name, str):
             builder.raw(f"section {_esc(name)}")
-    elif instr_type == "journey_step":
-        text = payload.get("text")
-        score = payload.get("score")
-        actor = payload.get("actor")
-        if isinstance(text, str) and isinstance(score, (int, float)) and isinstance(actor, str):
-            builder.raw(f"  {_esc(text)}: {float(score)}, {_esc(actor)}")
-    elif instr_type == "pie_slice":
-        label = payload.get("label")
-        value = payload.get("value")
-        if isinstance(label, str) and isinstance(value, (int, float)):
-            builder.raw(f'"{_esc(label)}" : {value}')
-    elif instr_type == "timeline_entry":
-        label = payload.get("label")
-        value = payload.get("value")
-        if isinstance(label, str) and isinstance(value, str):
-            builder.raw(f"{label}: {value}")
-    elif instr_type == "git_commit":
+
+
+def _instruction_journey_step(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    text = payload.get("text")
+    score = payload.get("score")
+    actor = payload.get("actor")
+    if (
+        isinstance(text, str)
+        and isinstance(score, (int, float))
+        and isinstance(actor, str)
+    ):
+        builder.raw(f"  {_esc(text)}: {float(score)}, {_esc(actor)}")
+
+
+def _instruction_pie_slice(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    label = payload.get("label")
+    value = payload.get("value")
+    if isinstance(label, str) and isinstance(value, (int, float)):
+        builder.raw(f'"{_esc(label)}" : {value}')
+
+
+def _instruction_timeline_entry(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    label = payload.get("label")
+    value = payload.get("value")
+    if isinstance(label, str) and isinstance(value, str):
+        builder.raw(f"{label}: {value}")
+
+
+def _instruction_git_commit(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         message = payload.get("message")
         if isinstance(message, str):
             builder.raw(f'commit id: "{_esc(message)}"')
-    elif instr_type == "git_branch":
+
+
+def _instruction_git_branch(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         name = payload.get("name")
         if isinstance(name, str):
             builder.raw(f"branch {name}")
-    elif instr_type == "git_checkout":
+
+
+def _instruction_git_checkout(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         branch = payload.get("branch")
         if isinstance(branch, str):
             builder.raw(f"checkout {branch}")
-    elif instr_type == "git_merge":
+
+
+def _instruction_git_merge(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         branch = payload.get("branch")
         if isinstance(branch, str):
             builder.raw(f"merge {branch}")
-    elif instr_type == "mindmap_node":
+
+
+def _instruction_mindmap_node(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
         path = payload.get("path")
         if isinstance(path, Sequence):
             nodes = [str(part) for part in path if isinstance(part, str)]
             builder.mindmap_node(nodes)
-    elif instr_type == "req":
-        kind = payload.get("kind")
-        ident = payload.get("id")
-        attrs = payload.get("attributes")
-        if isinstance(kind, str) and isinstance(ident, str) and isinstance(attrs, Mapping):
-            builder.req(kind, ident, {str(k): str(v) for k, v in attrs.items()})
-    elif instr_type == "req_link":
-        a = payload.get("source")
-        op = payload.get("operator")
-        b = payload.get("target")
-        label = payload.get("label")
-        if isinstance(a, str) and isinstance(op, str) and isinstance(b, str):
-            builder.req_link(a, op, b, label if isinstance(label, str) else None)
-    elif instr_type == "quadrant":
-        idx = payload.get("index")
+
+
+def _instruction_req(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    kind = payload.get("kind")
+    ident = payload.get("id")
+    attrs = payload.get("attributes")
+    if isinstance(kind, str) and isinstance(ident, str) and isinstance(attrs, Mapping):
+        builder.req(kind, ident, {str(k): str(v) for k, v in attrs.items()})
+
+
+def _instruction_req_link(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    source = payload.get("source")
+    operator = payload.get("operator")
+    target = payload.get("target")
+    label = payload.get("label")
+    if (
+        isinstance(source, str)
+        and isinstance(operator, str)
+        and isinstance(target, str)
+    ):
+        link_label = label if isinstance(label, str) else None
+        builder.req_link(source, operator, target, link_label)
+
+
+def _instruction_quadrant(builder: MermaidBuilder, payload: object) -> None:
+    if isinstance(payload, Mapping):
+        index = payload.get("index")
         name = payload.get("name")
-        if isinstance(idx, int) and isinstance(name, str):
-            builder.quadrant(idx, name)
-    elif instr_type == "quadrant_point":
-        label = payload.get("label")
-        x = payload.get("x")
-        y = payload.get("y")
-        if isinstance(label, str) and isinstance(x, (int, float)) and isinstance(y, (int, float)):
-            builder.quad_point(label, float(x), float(y))
+        if isinstance(index, int) and isinstance(name, str):
+            builder.quadrant(index, name)
+
+
+def _instruction_quadrant_point(builder: MermaidBuilder, payload: object) -> None:
+    if not isinstance(payload, Mapping):
+        return
+    label = payload.get("label")
+    x = payload.get("x")
+    y = payload.get("y")
+    if (
+        isinstance(label, str)
+        and isinstance(x, (int, float))
+        and isinstance(y, (int, float))
+    ):
+        builder.quad_point(label, float(x), float(y))
+
+
+_INSTRUCTION_HANDLERS: dict[str, Callable[[MermaidBuilder, object], None]] = {
+    "participant": _instruction_participant,
+    "message": _instruction_message,
+    "note": _instruction_note,
+    "activate": _instruction_activate,
+    "deactivate": _instruction_deactivate,
+    "block": _instruction_block,
+    "gantt_section": _instruction_gantt_section,
+    "gantt_task": _instruction_gantt_task,
+    "journey_section": _instruction_journey_section,
+    "journey_step": _instruction_journey_step,
+    "pie_slice": _instruction_pie_slice,
+    "timeline_entry": _instruction_timeline_entry,
+    "git_commit": _instruction_git_commit,
+    "git_branch": _instruction_git_branch,
+    "git_checkout": _instruction_git_checkout,
+    "git_merge": _instruction_git_merge,
+    "mindmap_node": _instruction_mindmap_node,
+    "req": _instruction_req,
+    "req_link": _instruction_req_link,
+    "quadrant": _instruction_quadrant,
+    "quadrant_point": _instruction_quadrant_point,
+}
+
+
+def _apply_instruction(
+    builder: MermaidBuilder, instr_type: str, payload: object
+) -> None:
+    if instr_type in {"line", "raw"}:
+        if isinstance(payload, str):
+            builder.raw(payload)
+        return
+    handler = _INSTRUCTION_HANDLERS.get(instr_type)
+    if handler:
+        handler(builder, payload)
 
 
 def _apply_instructions(builder: MermaidBuilder, instructions: object) -> None:
@@ -451,7 +742,8 @@ def _apply_document(
         "edges": edge_count,
     }
     if isinstance(metadata_obj, Mapping):
-        summary["metadata"] = dict(metadata_obj)
+        typed_metadata = cast("Mapping[str, object]", metadata_obj)
+        summary["metadata"] = dict(typed_metadata)
     return summary
 
 
@@ -471,7 +763,7 @@ def _maybe_to_svg(
         output_dir=output_path.parent,
         stem=output_path.stem,
         mermaid_cli_path=mermaid_cli_path,
-        runner=builder._runner if builder else None,
+        runner=builder.get_runner() if builder else None,
     )
     if export.succeeded:
         messages.append("Mermaid CLI executed successfully")
@@ -487,6 +779,136 @@ def _write_mermaid_source(path: Path, source: str) -> tuple[str, int]:
     path.write_text(source, encoding="utf-8")
     size = path.stat().st_size
     return str(path), size
+
+
+def _validate_input_schema(payload: Mapping[str, object]) -> dict[str, object] | None:
+    try:
+        validate_payload(payload, INPUT_SCHEMA)
+    except ValidationError as exc:
+        return _failure_payload(
+            "input payload failed validation",
+            details={
+                "error": exc.message,
+                "path": [str(part) for part in exc.path],
+                "schema_path": [str(part) for part in exc.schema_path],
+            },
+        )
+    return None
+
+
+def _extract_parameters(payload: Mapping[str, object]) -> Mapping[str, object]:
+    parameters_obj = payload.get("parameters")
+    if isinstance(parameters_obj, Mapping):
+        typed_parameters = cast("Mapping[str, object]", parameters_obj)
+        return MappingProxyType(dict(typed_parameters))
+    return _EMPTY_MAPPING
+
+
+def _resolve_output_mermaid(
+    parameters: Mapping[str, object],
+) -> Path | dict[str, object]:
+    output_mermaid_obj = parameters.get("output_mermaid")
+    if isinstance(output_mermaid_obj, str) and output_mermaid_obj:
+        return Path(output_mermaid_obj)
+    return _failure_payload(
+        "output_mermaid path missing",
+        details={"field": "output_mermaid"},
+    )
+
+
+def _extract_export_options(
+    parameters: Mapping[str, object],
+) -> tuple[bool, str | None, str | None]:
+    export_svg_obj = parameters.get("export_svg")
+    export_svg = bool(export_svg_obj) if not isinstance(export_svg_obj, bool) else export_svg_obj
+    output_svg_obj = parameters.get("output_svg")
+    output_svg: str | None = None
+    if isinstance(output_svg_obj, str) and output_svg_obj:
+        output_svg = output_svg_obj
+    mermaid_cli_obj = parameters.get("mermaid_cli_path")
+    mermaid_cli_path: str | None = None
+    if isinstance(mermaid_cli_obj, str) and mermaid_cli_obj:
+        mermaid_cli_path = mermaid_cli_obj
+    return export_svg, output_svg, mermaid_cli_path
+
+
+def _prepare_mermaid_source(
+    parameters: Mapping[str, object],
+    *,
+    ctx: object | None,
+) -> tuple[MermaidBuilder | None, str, dict[str, object]] | dict[str, object]:
+    document_obj = parameters.get("document")
+    document = None
+    if isinstance(document_obj, Mapping):
+        typed_document = cast("Mapping[str, object]", document_obj)
+        document = MappingProxyType(dict(typed_document))
+    builder: MermaidBuilder | None = None
+    summary_data: dict[str, object] = {}
+    document_source: str | None = None
+    if document is not None:
+        builder = MermaidBuilder(ctx=ctx)
+        summary_data = _apply_document(builder, document)
+        document_source = builder.source()
+
+    source_obj = parameters.get("source")
+    explicit_source = source_obj if isinstance(source_obj, str) and source_obj else None
+    mermaid_source = explicit_source if explicit_source is not None else document_source
+    if mermaid_source is None:
+        return _failure_payload(
+            "no Mermaid document or source provided",
+            details={"reason": "document and source were empty"},
+        )
+    return builder, mermaid_source, summary_data
+
+
+def _compose_summary(
+    summary_data: Mapping[str, object],
+    *,
+    source_path: str,
+    export_svg_flag: bool,
+    output_svg: str | None,
+    mermaid_cli_path: str | None,
+) -> dict[str, object]:
+    summary: dict[str, object] = dict(summary_data)
+    summary["output_mermaid"] = source_path
+    summary["export_svg"] = export_svg_flag
+    if output_svg:
+        summary["output_svg"] = output_svg
+    if mermaid_cli_path:
+        summary["mermaid_cli_path"] = mermaid_cli_path
+    return summary
+
+
+def _compose_success_result(
+    mermaid_artifact: Mapping[str, object],
+    messages: Sequence[str],
+    summary: Mapping[str, object],
+) -> dict[str, object]:
+    mermaid_payload: dict[str, object] = dict(mermaid_artifact)
+    summary_payload: dict[str, object] = dict(summary)
+    return {
+        "status": "success",
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": _timestamp(),
+        "mermaid": mermaid_payload,
+        "messages": list(messages),
+        "summary": summary_payload,
+    }
+
+
+def _validate_output_schema(result: Mapping[str, object]) -> dict[str, object] | None:
+    try:
+        validate_payload(result, OUTPUT_SCHEMA)
+    except ValidationError as exc:
+        return _failure_payload(
+            "generated output failed schema validation",
+            details={
+                "error": exc.message,
+                "path": [str(part) for part in exc.path],
+                "schema_path": [str(part) for part in exc.schema_path],
+            },
+        )
+    return None
 
 
 class MermaidBuilder:
@@ -608,6 +1030,10 @@ class MermaidBuilder:
             self._doc.lines.append(f"title {_esc(title)}")
         self._doc.lines.append(f'x-axis "{_esc(x_left)}" "{_esc(x_right)}"')
         self._doc.lines.append(f'y-axis "{_esc(y_bottom)}" "{_esc(y_top)}"')
+        return self
+
+    def custom(self, kind: str, header: str | None = None) -> Self:
+        self._doc = MermaidDoc(kind=kind, header=header or kind)
         return self
 
     # Flowchart API
@@ -995,6 +1421,9 @@ class MermaidBuilder:
     def get_last_export_result(self) -> ExportResult | None:
         return self._last_export_result
 
+    def get_runner(self) -> CommandRunner | None:
+        return self._runner
+
 
 def main() -> str:
     # Tiny demo
@@ -1010,68 +1439,31 @@ def main() -> str:
     return svg or "example.mmd"
 
 
-def main_json(payload: Mapping[str, object], *, ctx: object | None = None) -> dict[str, object]:
-    try:
-        validate_payload(payload, INPUT_SCHEMA)
-    except ValidationError as exc:
-        return _failure_payload(
-            "input payload failed validation",
-            details={
-                "error": exc.message,
-                "path": [str(part) for part in exc.path],
-                "schema_path": [str(part) for part in exc.schema_path],
-            },
-        )
+def main_json(
+    payload: Mapping[str, object], *, ctx: object | None = None
+) -> dict[str, object]:
+    schema_failure = _validate_input_schema(payload)
+    if schema_failure:
+        return schema_failure
 
-    parameters_obj = payload.get("parameters", {})
-    parameters = cast("Mapping[str, object]", parameters_obj)
+    parameters = _extract_parameters(payload)
+    output_mermaid_result = _resolve_output_mermaid(parameters)
+    if isinstance(output_mermaid_result, dict):
+        return output_mermaid_result
+    output_mermaid_path = output_mermaid_result
 
-    output_mermaid_obj = parameters.get("output_mermaid")
-    if not isinstance(output_mermaid_obj, str) or not output_mermaid_obj:
-        return _failure_payload(
-            "output_mermaid path missing",
-            details={"field": "output_mermaid"},
-        )
-    output_mermaid_path = Path(output_mermaid_obj)
-
-    export_svg_obj = parameters.get("export_svg", False)
-    export_svg = (
-        export_svg_obj
-        if isinstance(export_svg_obj, bool)
-        else bool(export_svg_obj)
-    )
-    output_svg_obj = parameters.get("output_svg")
-    output_svg = output_svg_obj if isinstance(output_svg_obj, str) and output_svg_obj else None
-    mermaid_cli_obj = parameters.get("mermaid_cli_path")
-    mermaid_cli_path = (
-        mermaid_cli_obj if isinstance(mermaid_cli_obj, str) and mermaid_cli_obj else None
-    )
-
-    document_obj = parameters.get("document")
-    document = cast("Mapping[str, object]", document_obj) if isinstance(document_obj, Mapping) else None
-    source_obj = parameters.get("source")
-    explicit_source = source_obj if isinstance(source_obj, str) and source_obj else None
-
-    builder: MermaidBuilder | None = None
-    summary_data: dict[str, object] = {}
-    document_source: str | None = None
-    result: dict[str, object]
+    export_svg, output_svg, mermaid_cli_path = _extract_export_options(parameters)
 
     try:
-        if document is not None:
-            builder = MermaidBuilder(ctx=ctx)
-            summary_data = _apply_document(builder, document)
-            document_source = builder.source()
-
-        mermaid_source = explicit_source if explicit_source is not None else document_source
-        if mermaid_source is None:
-            return _failure_payload(
-                "no Mermaid document or source provided",
-                details={"reason": "document and source were empty"},
-            )
+        builder_result = _prepare_mermaid_source(parameters, ctx=ctx)
+        if isinstance(builder_result, dict):
+            return builder_result
+        builder, mermaid_source, summary_data = builder_result
 
         mermaid_source = _ensure_trailing_newline(mermaid_source)
-        source_path_str, source_bytes = _write_mermaid_source(output_mermaid_path, mermaid_source)
+        source_path_str, source_bytes = _write_mermaid_source(
+            output_mermaid_path, mermaid_source
+        )
 
         messages: list[str] = []
         mermaid_artifact: dict[str, object] = {
@@ -1079,7 +1471,6 @@ def main_json(payload: Mapping[str, object], *, ctx: object | None = None) -> di
             "source_bytes": source_bytes,
         }
 
-        svg_payload: dict[str, object] | None = None
         if export_svg or output_svg is not None:
             svg_payload, export_messages = _maybe_to_svg(
                 mermaid_source,
@@ -1092,53 +1483,47 @@ def main_json(payload: Mapping[str, object], *, ctx: object | None = None) -> di
             if svg_payload is not None:
                 mermaid_artifact["svg"] = svg_payload
 
-        summary: dict[str, object] = dict(summary_data)
-        summary["output_mermaid"] = source_path_str
-        summary["export_svg"] = export_svg or bool(output_svg)
-        if output_svg:
-            summary["output_svg"] = output_svg
-        if mermaid_cli_path:
-            summary["mermaid_cli_path"] = mermaid_cli_path
+        summary = _compose_summary(
+            summary_data,
+            source_path=source_path_str,
+            export_svg_flag=export_svg or bool(output_svg),
+            output_svg=output_svg,
+            mermaid_cli_path=mermaid_cli_path,
+        )
 
-        result = {
-            "status": "success",
-            "schema_version": SCHEMA_VERSION,
-            "generated_at": _timestamp(),
-            "mermaid": mermaid_artifact,
-            "messages": messages,
-            "summary": summary,
-        }
+        result = _compose_success_result(mermaid_artifact, messages, summary)
     except Exception as exc:  # noqa: BLE001 - capture unexpected runtime issues
         return _failure_payload(
             "unexpected error while generating Mermaid artifacts",
             details={"error": str(exc)},
         )
 
-    try:
-        validate_payload(result, OUTPUT_SCHEMA)
-    except ValidationError as exc:
-        return _failure_payload(
-            "generated output failed schema validation",
-            details={
-                "error": exc.message,
-                "path": [str(part) for part in exc.path],
-                "schema_path": [str(part) for part in exc.schema_path],
-            },
-        )
-
+    output_failure = _validate_output_schema(result)
+    if output_failure:
+        return output_failure
     return result
 
 
 def _load_json_payload(file_path: str | None) -> Mapping[str, object]:
+    def _load(stream: IO[str]) -> Mapping[str, object]:
+        payload_obj: object = json.load(stream)
+        if not isinstance(payload_obj, Mapping):
+            message = "JSON payload must be a mapping"
+            raise TypeError(message)
+        typed_payload = cast("Mapping[str, object]", payload_obj)
+        return MappingProxyType(dict(typed_payload))
+
     if file_path:
         with Path(file_path).open("r", encoding="utf-8") as handle:
-            return cast("Mapping[str, object]", json.load(handle))
-    return cast("Mapping[str, object]", json.load(_sys.stdin))
+            return _load(handle)
+    return _load(_sys.stdin)
 
 
 def _run_json_cli(args: Sequence[str]) -> None:
     parser = argparse.ArgumentParser(description="x_make_mermaid_x JSON runner")
-    parser.add_argument("--json", action="store_true", help="Read JSON payload from stdin")
+    parser.add_argument(
+        "--json", action="store_true", help="Read JSON payload from stdin"
+    )
     parser.add_argument("--json-file", type=str, help="Path to JSON payload file")
     parsed = parser.parse_args(args)
 

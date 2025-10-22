@@ -1,46 +1,46 @@
 from __future__ import annotations
 
+# ruff: noqa: S101
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from x_make_common_x.exporters import ExportResult
 from x_make_common_x.json_contracts import validate_payload, validate_schema
 
-from x_make_mermaid_x.json_contracts import (
-    ERROR_SCHEMA,
-    INPUT_SCHEMA,
-    OUTPUT_SCHEMA,
-)
+from x_make_mermaid_x.json_contracts import ERROR_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA
 from x_make_mermaid_x.x_cls_make_mermaid_x import main_json
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
-else:
-    pytest = cast("Any", pytest)
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "json_contracts"
 REPORTS_DIR = Path(__file__).resolve().parents[1] / "reports"
+EXPECTED_NODE_COUNT = 2
+EXPECTED_EDGE_COUNT = 1
 
 
 def _load_fixture(name: str) -> dict[str, object]:
     with (FIXTURE_DIR / f"{name}.json").open("r", encoding="utf-8") as handle:
         data = json.load(handle)
+    if not isinstance(data, dict):
+        message = f"Fixture payload must be an object: {name}"
+        raise TypeError(message)
     return cast("dict[str, object]", data)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")  # type: ignore[misc]
 def sample_input() -> dict[str, object]:
     return _load_fixture("input")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")  # type: ignore[misc]
 def sample_output() -> dict[str, object]:
     return _load_fixture("output")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")  # type: ignore[misc]
 def sample_error() -> dict[str, object]:
     return _load_fixture("error")
 
@@ -68,7 +68,7 @@ def test_existing_reports_align_with_schema() -> None:
         pytest.skip("no mermaid run reports to validate")
     for report_file in report_files:
         with report_file.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
+            payload = cast("dict[str, object]", json.load(handle))
         validate_payload(payload, OUTPUT_SCHEMA)
 
 
@@ -77,14 +77,18 @@ def test_main_json_builds_from_document(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
-    payload = json.loads(json.dumps(sample_input))
+    payload = cast("dict[str, object]", json.loads(json.dumps(sample_input)))
     output_dir = tmp_path / "artifacts"
-    payload["parameters"]["output_mermaid"] = str(output_dir / "diagram.mmd")
-    payload["parameters"]["output_svg"] = str(output_dir / "diagram.svg")
+    parameters_obj = payload.get("parameters")
+    if not isinstance(parameters_obj, dict):
+        raise TypeError("sample fixture payload must contain parameters object")
+    parameters = cast("dict[str, object]", parameters_obj)
+    parameters["output_mermaid"] = str(output_dir / "diagram.mmd")
+    parameters["output_svg"] = str(output_dir / "diagram.svg")
     fake_cli = tmp_path / "bin" / "mmdc.cmd"
     fake_cli.parent.mkdir(parents=True, exist_ok=True)
     fake_cli.write_text("binary", encoding="utf-8")
-    payload["parameters"]["mermaid_cli_path"] = str(fake_cli)
+    parameters["mermaid_cli_path"] = str(fake_cli)
 
     def fake_export(
         mermaid_source: str,
@@ -92,8 +96,7 @@ def test_main_json_builds_from_document(
         output_dir: Path,
         stem: str,
         mermaid_cli_path: str | None = None,
-        runner=None,
-        extra_args=None,
+        **_kwargs: object,
     ) -> ExportResult:
         mmd_path = output_dir / f"{stem}.mmd"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -141,8 +144,8 @@ def test_main_json_builds_from_document(
     summary_obj = result.get("summary")
     assert isinstance(summary_obj, dict)
     assert summary_obj.get("diagram") == "flowchart"
-    assert summary_obj.get("nodes") == 2
-    assert summary_obj.get("edges") == 1
+    assert summary_obj.get("nodes") == EXPECTED_NODE_COUNT
+    assert summary_obj.get("edges") == EXPECTED_EDGE_COUNT
 
     messages_obj = result.get("messages")
     assert isinstance(messages_obj, list)
@@ -153,7 +156,7 @@ def test_main_json_builds_from_document(
 
 
 def test_main_json_uses_raw_source(tmp_path: Path) -> None:
-    payload = {
+    payload: dict[str, object] = {
         "command": "x_make_mermaid_x",
         "parameters": {
             "output_mermaid": str(tmp_path / "raw.mmd"),
@@ -177,7 +180,7 @@ def test_main_json_uses_raw_source(tmp_path: Path) -> None:
 
 
 def test_main_json_reports_validation_error() -> None:
-    payload = {"command": "x_make_mermaid_x", "parameters": {}}
+    payload: dict[str, object] = {"command": "x_make_mermaid_x", "parameters": {}}
 
     result = main_json(payload)
 
