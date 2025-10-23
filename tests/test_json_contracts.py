@@ -2,8 +2,9 @@ from __future__ import annotations
 
 # ruff: noqa: S101
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, cast
 
 import pytest
 from x_make_common_x.exporters import ExportResult
@@ -13,12 +14,39 @@ from x_make_mermaid_x.json_contracts import ERROR_SCHEMA, INPUT_SCHEMA, OUTPUT_S
 from x_make_mermaid_x.x_cls_make_mermaid_x import main_json
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from _pytest.monkeypatch import MonkeyPatch
+else:  # pragma: no cover - runtime typing fallback
+    import typing
+
+    Callable = typing.Callable
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "json_contracts"
 REPORTS_DIR = Path(__file__).resolve().parents[1] / "reports"
 EXPECTED_NODE_COUNT = 2
 EXPECTED_EDGE_COUNT = 1
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
+
+if TYPE_CHECKING:
+
+    def typed_fixture(
+        *_args: object, **_kwargs: object
+    ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]: ...
+
+else:
+
+    def typed_fixture(
+        *args: object, **kwargs: object
+    ) -> Callable[[Callable[_P, _T]], Callable[_P, _T]]:
+        def _decorate(func: Callable[_P, _T]) -> Callable[_P, _T]:
+            decorated = pytest.fixture(*args, **kwargs)(func)
+            return cast("Callable[_P, _T]", decorated)
+
+        return _decorate
 
 
 def _load_fixture(name: str) -> dict[str, object]:
@@ -30,17 +58,17 @@ def _load_fixture(name: str) -> dict[str, object]:
     return cast("dict[str, object]", data)
 
 
-@pytest.fixture(scope="module")  # type: ignore[misc]
+@typed_fixture(scope="module")
 def sample_input() -> dict[str, object]:
     return _load_fixture("input")
 
 
-@pytest.fixture(scope="module")  # type: ignore[misc]
+@typed_fixture(scope="module")
 def sample_output() -> dict[str, object]:
     return _load_fixture("output")
 
 
-@pytest.fixture(scope="module")  # type: ignore[misc]
+@typed_fixture(scope="module")
 def sample_error() -> dict[str, object]:
     return _load_fixture("error")
 
@@ -68,8 +96,13 @@ def test_existing_reports_align_with_schema() -> None:
         pytest.skip("no mermaid run reports to validate")
     for report_file in report_files:
         with report_file.open("r", encoding="utf-8") as handle:
-            payload = cast("dict[str, object]", json.load(handle))
-        validate_payload(payload, OUTPUT_SCHEMA)
+            payload_obj: object = json.load(handle)
+        if isinstance(payload_obj, Mapping):
+            payload_map = cast("Mapping[str, object]", payload_obj)
+            validate_payload(dict(payload_map), OUTPUT_SCHEMA)
+        else:
+            message = f"Report {report_file.name} must contain a JSON object"
+            raise AssertionError(message)
 
 
 def test_main_json_builds_from_document(

@@ -39,7 +39,20 @@ def test_flowchart_source_includes_nodes_and_edges() -> None:
     ), "Edge with label and style should be emitted"
 
 
-def test_to_svg_returns_none_when_cli_missing(tmp_path: Path) -> None:
+def test_to_svg_returns_none_when_cli_missing(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MMDC", raising=False)
+
+    def _no_binary(*_args: object, **_kwargs: object) -> Path | None:
+        return None
+
+    monkeypatch.setattr(
+        "x_make_common_x.exporters._resolve_binary",
+        _no_binary,
+    )
+
     builder = MermaidBuilder().flowchart("LR").node("A", "Start")
     mmd_path = tmp_path / "diagram.mmd"
 
