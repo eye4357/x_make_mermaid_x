@@ -7,6 +7,7 @@ Output is a plain string suitable for Markdown or Mermaid CLI.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import logging
 import subprocess
@@ -18,9 +19,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import IO, Self, cast
+from typing import IO, Protocol, Self, cast
 
-from jsonschema import ValidationError
 from x_make_common_x.exporters import (
     CommandRunner,
     ExportResult,
@@ -75,7 +75,22 @@ def run_command(
 
 _LOGGER = logging.getLogger("x_make")
 
-ValidationErrorType = cast("type[Exception]", ValidationError)
+
+class _SchemaValidationError(Exception):
+    message: str
+    path: tuple[object, ...]
+    schema_path: tuple[object, ...]
+
+
+class _JsonSchemaModule(Protocol):
+    ValidationError: type[_SchemaValidationError]
+
+
+def _load_validation_error() -> type[_SchemaValidationError]:
+    module = cast("_JsonSchemaModule", importlib.import_module("jsonschema"))
+    return module.ValidationError
+
+ValidationErrorType: type[_SchemaValidationError] = _load_validation_error()
 
 _EMPTY_MAPPING: Mapping[str, object] = MappingProxyType(cast("dict[str, object]", {}))
 
@@ -784,13 +799,14 @@ def _write_mermaid_source(path: Path, source: str) -> tuple[str, int]:
 def _validate_input_schema(payload: Mapping[str, object]) -> dict[str, object] | None:
     try:
         validate_payload(payload, INPUT_SCHEMA)
-    except ValidationError as exc:
+    except ValidationErrorType as exc:
+        error = exc
         return _failure_payload(
             "input payload failed validation",
             details={
-                "error": exc.message,
-                "path": [str(part) for part in exc.path],
-                "schema_path": [str(part) for part in exc.schema_path],
+                "error": error.message,
+                "path": [str(p) for p in error.path],
+                "schema_path": [str(p) for p in error.schema_path],
             },
         )
     return None
@@ -820,7 +836,9 @@ def _extract_export_options(
     parameters: Mapping[str, object],
 ) -> tuple[bool, str | None, str | None]:
     export_svg_obj = parameters.get("export_svg")
-    export_svg = bool(export_svg_obj) if not isinstance(export_svg_obj, bool) else export_svg_obj
+    export_svg = (
+        bool(export_svg_obj) if not isinstance(export_svg_obj, bool) else export_svg_obj
+    )
     output_svg_obj = parameters.get("output_svg")
     output_svg: str | None = None
     if isinstance(output_svg_obj, str) and output_svg_obj:
@@ -899,13 +917,14 @@ def _compose_success_result(
 def _validate_output_schema(result: Mapping[str, object]) -> dict[str, object] | None:
     try:
         validate_payload(result, OUTPUT_SCHEMA)
-    except ValidationError as exc:
+    except ValidationErrorType as exc:
+        error = exc
         return _failure_payload(
             "generated output failed schema validation",
             details={
-                "error": exc.message,
-                "path": [str(part) for part in exc.path],
-                "schema_path": [str(part) for part in exc.schema_path],
+                "error": error.message,
+                "path": [str(p) for p in error.path],
+                "schema_path": [str(p) for p in error.schema_path],
             },
         )
     return None
