@@ -90,6 +90,7 @@ def _load_validation_error() -> type[_SchemaValidationError]:
     module = cast("_JsonSchemaModule", importlib.import_module("jsonschema"))
     return module.ValidationError
 
+
 ValidationErrorType: type[_SchemaValidationError] = _load_validation_error()
 
 _EMPTY_MAPPING: Mapping[str, object] = MappingProxyType(cast("dict[str, object]", {}))
