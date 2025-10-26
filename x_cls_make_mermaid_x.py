@@ -1526,12 +1526,18 @@ def main_json(
 
 def _load_json_payload(file_path: str | None) -> Mapping[str, object]:
     def _load(stream: IO[str]) -> Mapping[str, object]:
-        payload_obj: object = json.load(stream)
-        if not isinstance(payload_obj, Mapping):
+        raw_payload_obj = cast("object", json.load(stream))
+        if not isinstance(raw_payload_obj, Mapping):
             message = "JSON payload must be a mapping"
             raise TypeError(message)
-        typed_payload = cast("Mapping[str, object]", payload_obj)
-        return MappingProxyType(dict(typed_payload))
+        raw_payload = cast("Mapping[object, object]", raw_payload_obj)
+        payload_dict: dict[str, object] = {}
+        for key, value in raw_payload.items():
+            if not isinstance(key, str):
+                message = "JSON payload keys must be strings"
+                raise TypeError(message)
+            payload_dict[key] = value
+        return MappingProxyType(payload_dict)
 
     if file_path:
         with Path(file_path).open("r", encoding="utf-8") as handle:
@@ -1547,10 +1553,15 @@ def _run_json_cli(args: Sequence[str]) -> None:
     parser.add_argument("--json-file", type=str, help="Path to JSON payload file")
     parsed = parser.parse_args(args)
 
-    if not (parsed.json or parsed.json_file):
+    json_flag_obj: object = cast("object", getattr(parsed, "json", False))
+    read_from_stdin = bool(json_flag_obj)
+    json_file_obj: object = cast("object", getattr(parsed, "json_file", None))
+    json_file = json_file_obj if isinstance(json_file_obj, str) else None
+
+    if not (read_from_stdin or json_file):
         parser.error("JSON input required. Use --json for stdin or --json-file <path>.")
 
-    payload = _load_json_payload(parsed.json_file if parsed.json_file else None)
+    payload = _load_json_payload(None if read_from_stdin else json_file)
     result = main_json(payload)
     json.dump(result, _sys.stdout, indent=2)
     _sys.stdout.write("\n")

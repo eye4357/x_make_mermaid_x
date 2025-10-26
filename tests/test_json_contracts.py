@@ -5,7 +5,7 @@ import copy
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final, cast
 
 import pytest
 from x_make_common_x.exporters import ExportResult
@@ -25,16 +25,19 @@ EXPECTED_EDGE_COUNT = 1
 
 def _load_fixture(name: str) -> dict[str, object]:
     with (FIXTURE_DIR / f"{name}.json").open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    if not isinstance(data, dict):
+        raw_payload = cast("object", json.load(handle))
+    if not isinstance(raw_payload, dict):
         message = f"Fixture payload must be an object: {name}"
         raise TypeError(message)
-    return cast("dict[str, object]", data)
+    typed_payload: dict[str, object] = {}
+    for key, value in raw_payload.items():
+        typed_payload[str(key)] = value
+    return typed_payload
 
 
-SAMPLE_INPUT = _load_fixture("input")
-SAMPLE_OUTPUT = _load_fixture("output")
-SAMPLE_ERROR = _load_fixture("error")
+SAMPLE_INPUT: Final[dict[str, object]] = _load_fixture("input")
+SAMPLE_OUTPUT: Final[dict[str, object]] = _load_fixture("output")
+SAMPLE_ERROR: Final[dict[str, object]] = _load_fixture("error")
 
 
 def test_schemas_are_valid() -> None:
@@ -65,7 +68,7 @@ def test_existing_reports_align_with_schema() -> None:
             raise TypeError(message)
 
 
-def test_main_json_builds_from_document(
+def test_main_json_builds_from_document(  # noqa: PLR0915 - test covers varied behaviors
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -122,23 +125,26 @@ def test_main_json_builds_from_document(
 
     artifact_obj = result.get("mermaid")
     assert isinstance(artifact_obj, dict)
-    source_path_value = artifact_obj.get("source_path")
+    artifact_map = cast("dict[str, object]", artifact_obj)
+    source_path_value = artifact_map.get("source_path")
     assert isinstance(source_path_value, str)
     mermaid_path = Path(source_path_value)
     assert mermaid_path.exists()
-    source_bytes = artifact_obj.get("source_bytes")
+    source_bytes = artifact_map.get("source_bytes")
     assert isinstance(source_bytes, int)
     assert source_bytes > 0
 
-    svg_info_obj = artifact_obj.get("svg")
+    svg_info_obj = artifact_map.get("svg")
     assert isinstance(svg_info_obj, dict)
-    assert svg_info_obj.get("succeeded") is True
+    svg_info_map = cast("dict[str, object]", svg_info_obj)
+    assert svg_info_map.get("succeeded") is True
 
     summary_obj = result.get("summary")
     assert isinstance(summary_obj, dict)
-    assert summary_obj.get("diagram") == "flowchart"
-    assert summary_obj.get("nodes") == EXPECTED_NODE_COUNT
-    assert summary_obj.get("edges") == EXPECTED_EDGE_COUNT
+    summary_map = cast("dict[str, object]", summary_obj)
+    assert summary_map.get("diagram") == "flowchart"
+    assert summary_map.get("nodes") == EXPECTED_NODE_COUNT
+    assert summary_map.get("edges") == EXPECTED_EDGE_COUNT
 
     messages_obj = result.get("messages")
     assert isinstance(messages_obj, list)
@@ -169,7 +175,8 @@ def test_main_json_uses_raw_source(tmp_path: Path) -> None:
 
     summary_obj = result.get("summary")
     assert isinstance(summary_obj, dict)
-    export_svg_value = summary_obj.get("export_svg")
+    summary_map = cast("dict[str, object]", summary_obj)
+    export_svg_value = summary_map.get("export_svg")
     assert isinstance(export_svg_value, bool)
     assert export_svg_value is False
 
