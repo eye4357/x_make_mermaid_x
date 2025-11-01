@@ -31,19 +31,8 @@ Use the example module or your own scripts to generate `.mmd` plus SVG outputs a
 | Static contract scan | `python -m pyright` |
 | Functional verification | `pytest` |
 
-## System Linkage
-- [Changelog](./CHANGELOG.md)
-- [Road to 0.20.4 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.4/Road%20to%200.20.4%20Engineering%20Proposal.md)
-- [Road to 0.20.3 Engineering Proposal](../x_0_make_all_x/Change%20Control/0.20.3/Road%20to%200.20.3%20Engineering%20Proposal.md)
-
 ## Reconstitution Drill
 Each month I install Node.js and `mmdc` on a clean machine, rerun this engine, and verify SVG artefacts slot into orchestrator summaries without renaming. CLI versions and runtimes are logged; any issues get resolved before production resumes.
-
-## Cross-Referenced Assets
-- [x_make_markdown_x](../x_make_markdown_x/README.md) — consumes Mermaid outputs directly in documentation bundles.
-- [x_make_graphviz_x](../x_make_graphviz_x/README.md) — complements Mermaid diagrams when DOT views are required.
-- [x_0_make_all_x](../x_0_make_all_x/README.md) — orchestrator that distributes these diagrams across the lab.
-
 ## Conduct Code
 New helpers require tests, documentation, and a Change Control entry describing the narrative they support. Diagrams are operational evidence—handle them with the same rigor as telemetry.
 
