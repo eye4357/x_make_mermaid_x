@@ -27,7 +27,6 @@ from x_make_common_x.exporters import (
     export_mermaid_to_svg,
 )
 from x_make_common_x.json_contracts import validate_payload
-
 from x_make_mermaid_x.json_contracts import ERROR_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA
 
 
